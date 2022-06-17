@@ -1,0 +1,12 @@
+{
+  "slug": "second-post",
+  "pt": {
+    "title": "Segundo post",
+    "tags": ["next"]
+  },
+  "en": {
+    "title": "Second post",
+    "tags": ["next"]
+  },
+  "date": "2022-07-24"
+}
