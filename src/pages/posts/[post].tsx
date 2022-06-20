@@ -1,7 +1,9 @@
-import type { GetStaticPaths, GetStaticProps, NextPage } from 'next';
 import { readdirSync, readFileSync } from 'fs';
-import { PostMetadata } from '../../types';
+
+import type { GetStaticPaths, GetStaticProps, NextPage } from 'next';
 import ReactMarkdown from 'react-markdown';
+
+import { PostMetadata } from '@/types/post';
 
 export const getStaticPaths: GetStaticPaths = async () => {
   const posts = readdirSync('src/posts');
@@ -35,7 +37,7 @@ interface PostProps {
 
 const Post: NextPage<PostProps> = (props) => {
   return (
-    <article className='flex flex-col items-center post'>
+    <article className="flex flex-col items-center post">
       <ReactMarkdown>{props.content}</ReactMarkdown>
     </article>
   );
