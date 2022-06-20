@@ -1,7 +1,10 @@
 export const prettyDate = (date: string, lang?: string) => {
   const year = date.substring(0, 4);
   const month = date.substring(5, 7);
-  const day = date.substring(8, 10);
+  let day = date.substring(8, 10);
+  if (day[0] === '0') {
+    day = day.substring(1);
+  }
 
   const months = {
     en: [
@@ -33,18 +36,19 @@ export const prettyDate = (date: string, lang?: string) => {
       'Dezembro',
     ],
   };
+
   let prefix;
   switch (day) {
-    case '01':
+    case '1':
     case '21':
     case '31':
       prefix = 'st';
       break;
-    case '02':
+    case '2':
     case '22':
       prefix = 'nd';
       break;
-    case '03':
+    case '3':
     case '23':
       prefix = 'rd';
       break;

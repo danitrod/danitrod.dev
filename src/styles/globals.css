@@ -28,3 +28,11 @@ a:hover {
 * {
   box-sizing: border-box;
 }
+
+.post h1 {
+  @apply text-3xl;
+}
+
+.post p {
+  @apply text-sm mt-2;
+}

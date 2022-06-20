@@ -1,12 +1,11 @@
 {
   "slug": "second-post",
+  "tags": ["Traveling"],
   "pt": {
-    "title": "Segundo post",
-    "tags": ["next"]
+    "title": "Segundo post"
   },
   "en": {
-    "title": "Second post",
-    "tags": ["next"]
+    "title": "Second post"
   },
   "date": "2022-07-24"
 }

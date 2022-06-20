@@ -33,7 +33,7 @@ const Home: NextPage<HomeProps> = ({ posts }) => {
 
       <main className='w-full flex flex-col items-center'>
         <h1 className='text-3xl'>Daniel T. Rodrigues</h1>
-        <p className='mt-4'>Some thoughts and experiences of my life.</p>
+        <p className='mt-4'>Some thoughts and experiences from my life.</p>
 
         <div className='mt-8 flex flex-col w-full items-center'>
           <>
@@ -41,13 +41,22 @@ const Home: NextPage<HomeProps> = ({ posts }) => {
               <h2 className='text-2xl underline'>Latest Posts</h2>
             </a>
             {posts.map((post) => (
-              <div key={post.slug} className='pt-4 flex flex-col'>
+              <div key={post.slug} className='pt-4 flex flex-col items-center'>
                 <Link href={`/posts/${post.slug}`}>
                   <a>
                     <h3 className='text-lg'>{post.en.title}</h3>
                   </a>
                 </Link>
-                <p className='text-sm self-end'>{prettyDate(post.date)}</p>
+                <p className='text-sm italic'>{prettyDate(post.date)}</p>
+                <div className='flex items-center'>
+                  {post.tags.map((tag) => (
+                    <Link key='tag' href={`/posts?tags=${tag}`}>
+                      <a className='m-2 p-2 bg-slate-300 text-slate-800 rounded text-xs hover:bg-slate-200 hover:text-slate-700'>
+                        {tag}
+                      </a>
+                    </Link>
+                  ))}
+                </div>
               </div>
             ))}
           </>

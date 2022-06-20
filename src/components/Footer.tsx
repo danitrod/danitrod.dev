@@ -12,7 +12,7 @@ const Footer = (): JSX.Element => {
         rel='noopener noreferrer'
         className='p-4'
       >
-        <Image src={githubLogo} alt='GitHub' height={48} width={48} />
+        <Image src={githubLogo} alt='GitHub' height={32} width={32} />
       </a>
       <a
         href='https://linkedin.com/in/danitrod'
@@ -20,7 +20,7 @@ const Footer = (): JSX.Element => {
         rel='noopener noreferrer'
         className='p-4'
       >
-        <Image src={linkedInLogo} alt='LinkedIn' height={48} width={48} />
+        <Image src={linkedInLogo} alt='LinkedIn' height={32} width={32} />
       </a>
     </footer>
   );

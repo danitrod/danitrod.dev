@@ -6,7 +6,7 @@ const Navbar = (): JSX.Element => {
     <nav className='p-8 flex flex-row justify-between w-full'>
       <Link href='/'>
         <a>
-          <h2>Dani&apos;s Blog</h2>
+          <h2>danitrod.dev</h2>
         </a>
       </Link>
       <div>

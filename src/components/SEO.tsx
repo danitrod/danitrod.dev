@@ -9,7 +9,7 @@ interface SEOProps {
 const SEO = (props: SEOProps): JSX.Element => {
   return (
     <Head>
-      <title>{(props.title ? `${props.title} | ` : '') + `dani's blog`}</title>
+      <title>{(props.title ? `${props.title} | ` : '') + `danitrod.dev`}</title>
       <meta name='description' content={props.description} />
     </Head>
   );
