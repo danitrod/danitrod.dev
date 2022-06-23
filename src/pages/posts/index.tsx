@@ -38,6 +38,12 @@ const Posts: NextPage<PostsProps> = (props) => {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [searchValue, setSearchValue] = useState<string>('');
 
+  const filteredPosts = props.posts.filter((post) => {
+    return (
+      post.en.title.includes(searchValue) && selectedTags.every((tag) => post.tags.includes(tag))
+    );
+  });
+
   const selectTag = (tag: string) => {
     if (selectedTags.includes(tag)) {
       setSelectedTags(selectedTags.filter((t) => t !== tag));
@@ -58,7 +64,7 @@ const Posts: NextPage<PostsProps> = (props) => {
         />
         <ul className="flex mt-2">
           {props.tags.map((tag) => (
-            <li key="tag" className="m-2">
+            <li key={tag} className="m-2">
               <div
                 className={`p-2 ${
                   selectedTags.includes(tag) ? 'bg-slate-100' : 'bg-slate-300'
@@ -71,7 +77,7 @@ const Posts: NextPage<PostsProps> = (props) => {
           ))}
         </ul>
         <ul className="mt-2">
-          {props.posts.map((post) => (
+          {filteredPosts.map((post) => (
             <li key={post.slug} className="pt-4 flex flex-col items-center">
               <Link href={`/posts/${post.slug}`}>
                 <a>
@@ -81,7 +87,7 @@ const Posts: NextPage<PostsProps> = (props) => {
               <p className="text-sm italic">{prettyDate(post.date)}</p>
               <ul className="flex items-center">
                 {post.tags.map((tag) => (
-                  <li key="tag" className="m-2">
+                  <li key={tag} className="m-2">
                     <Link href={`/posts?tags=${tag}`}>
                       <a className="p-2 bg-slate-300 text-slate-800 rounded text-xs hover:bg-slate-200 hover:text-slate-700">
                         {tag}
