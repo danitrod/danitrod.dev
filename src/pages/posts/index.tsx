@@ -40,7 +40,8 @@ const Posts: NextPage<PostsProps> = (props) => {
 
   const filteredPosts = props.posts.filter((post) => {
     return (
-      post.en.title.includes(searchValue) && selectedTags.every((tag) => post.tags.includes(tag))
+      post.en.title.toLowerCase().includes(searchValue.toLowerCase()) &&
+      selectedTags.every((tag) => post.tags.includes(tag))
     );
   });
 
@@ -61,14 +62,17 @@ const Posts: NextPage<PostsProps> = (props) => {
           type="text"
           placeholder="Search"
           className="p-2 mt-2 text-sm text-slate-700 rounded-md"
+          onChange={(e) => setSearchValue(e.target.value)}
         />
         <ul className="flex mt-2">
           {props.tags.map((tag) => (
             <li key={tag} className="m-2">
               <div
                 className={`p-2 ${
-                  selectedTags.includes(tag) ? 'bg-slate-100' : 'bg-slate-300'
-                } text-slate-800 rounded text-xs hover:bg-slate-200 hover:text-slate-700`}
+                  selectedTags.includes(tag) ? 'bg-green-300' : 'bg-slate-300'
+                } text-slate-800 rounded text-xs ${
+                  selectedTags.includes(tag) ? 'hover:bg-green-200' : 'hover:bg-slate-200'
+                } hover:text-slate-700`}
                 onClick={() => selectTag(tag)}
               >
                 {tag}
