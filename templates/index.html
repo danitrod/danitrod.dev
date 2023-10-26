@@ -7,26 +7,29 @@
       <h2 class="text-2xl underline">Latest Posts</h2>
     </a>
     <ul>
+    {% set posts = get_section(path="posts/_index.md") %}
+		{% for post in posts.pages %}
+        <li  class="pt-4 flex flex-col items-center">
+          <Link >
+					<a href={{ post.permalink }}>
+						<h3 class="text-lg">{{ post.title }}</h3>
+            </a>
+          </Link>
+					<p class="text-sm italic">{{ post.date  }}</p>
+          <!-- <ul class="flex items-center"> -->
+          <!--   {post.tags.map((tag) => ( -->
+          <!--     <li key="tag" class="m-2"> -->
+          <!--       <Link href={`/posts?tags=${tag}`}> -->
+          <!--         <a class="p-2 bg-slate-300 text-slate-800 rounded text-xs hover:bg-slate-200 hover:text-slate-700"> -->
+          <!--           {tag} -->
+          <!--         </a> -->
+          <!--       </Link> -->
+          <!--     </li> -->
+          <!--   ))} -->
+          <!-- </ul> -->
+        </li>
+		{% endfor %}
       <!-- {posts.map((post) => ( -->
-      <!--   <li key={post.slug} class="pt-4 flex flex-col items-center"> -->
-      <!--     <Link href={`/posts/${post.slug}`}> -->
-      <!--       <a> -->
-      <!--         <h3 class="text-lg">{post.en.title}</h3> -->
-      <!--       </a> -->
-      <!--     </Link> -->
-      <!--     <p class="text-sm italic">{prettyDate(post.date)}</p> -->
-      <!--     <ul class="flex items-center"> -->
-      <!--       {post.tags.map((tag) => ( -->
-      <!--         <li key="tag" class="m-2"> -->
-      <!--           <Link href={`/posts?tags=${tag}`}> -->
-      <!--             <a class="p-2 bg-slate-300 text-slate-800 rounded text-xs hover:bg-slate-200 hover:text-slate-700"> -->
-      <!--               {tag} -->
-      <!--             </a> -->
-      <!--           </Link> -->
-      <!--         </li> -->
-      <!--       ))} -->
-      <!--     </ul> -->
-      <!--   </li> -->
       <!-- ))} -->
     </ul>
   </div>

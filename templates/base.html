@@ -15,25 +15,22 @@
     <link href="{{ get_url(path="css/main.css") }}" rel="stylesheet" />
   </head>
   <body>
-    <div>
-      <nav class="p-8 flex flex-row justify-between w-full">
-        <a href="/">
-          <h2>danitrod.dev</h2>
-        </a>
-        <div>
-          <a class="mr-4" href="/about">About</a
-          ><a class="mr-4" href="/posts">Posts</a
-          ><a
-            href="https://github.com/danitrod/danitrod.dev"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Source
-          </a>
-        </div>
-      </nav>
-      {% block content %} {% endblock %}
-    </div>
+    <nav class="p-8 flex flex-row justify-between w-full">
+      <a href="/">
+        <h2>danitrod.dev</h2>
+      </a>
+      <div>
+        <a class="mr-4" href="/about">About</a
+        ><a class="mr-4" href="/posts">Posts</a
+        ><a
+          href="https://github.com/danitrod/danitrod.dev"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Source</a
+        >
+      </div>
+    </nav>
+    {% block content %} {% endblock %}
     <footer class="p-8 flex w-full justify-center">
       <a
         href="https://github.com/danitrod"
