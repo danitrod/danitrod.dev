@@ -16,14 +16,14 @@
   </head>
   <body>
     <div>
-      <nav className="p-8 flex flex-row justify-between w-full">
+      <nav class="p-8 flex flex-row justify-between w-full">
         <a href="/">
-          <h2 className="text-green">danitrod.dev</h2>
+          <h2>danitrod.dev</h2>
         </a>
         <div>
-          <a className="mr-4" href="/about">About</a>
-          <a className="mr-4" href="/posts">Posts</a>
-          <a
+          <a class="mr-4" href="/about">About</a
+          ><a class="mr-4" href="/posts">Posts</a
+          ><a
             href="https://github.com/danitrod/danitrod.dev"
             target="_blank"
             rel="noopener noreferrer"
@@ -34,5 +34,25 @@
       </nav>
       {% block content %} {% endblock %}
     </div>
+    <footer class="p-8 flex w-full justify-center">
+      <a
+        href="https://github.com/danitrod"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="p-4"
+      >
+        <image src="{{ get_url(path="assets/github.svg" ) }}" alt="GitHub"
+        height="32" width="32" />
+      </a>
+      <a
+        href="https://linkedin.com/in/danitrod"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="p-4"
+      >
+        <image src="{{ get_url(path="assets/linkedin.png" ) }}" alt="LinkedIn"
+        height="32" width="32" />
+      </a>
+    </footer>
   </body>
 </html>
