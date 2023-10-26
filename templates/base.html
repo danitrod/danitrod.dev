@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>danitrod.dev</title>
+    <meta
+      name="description"
+      content="some thoughts and experiences from my life."
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Red+Hat+Mono&amp;family=Red+Hat+Text:wght@300;400;500;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link href="{{ get_url(path="css/main.css") }}" rel="stylesheet" />
+  </head>
+  <body>
+    <div>
+      <nav className="p-8 flex flex-row justify-between w-full">
+        <a href="/">
+          <h2 className="text-green">danitrod.dev</h2>
+        </a>
+        <div>
+          <a className="mr-4" href="/about">About</a>
+          <a className="mr-4" href="/posts">Posts</a>
+          <a
+            href="https://github.com/danitrod/danitrod.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Source
+          </a>
+        </div>
+      </nav>
+      {% block content %} {% endblock %}
+    </div>
+  </body>
+</html>
