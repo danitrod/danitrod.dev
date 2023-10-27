@@ -1,0 +1,6 @@
+{% extends "base.html" %} {% block content %}
+<main class="flex flex-col items-center p-4 about">
+  <h1 class="text-3xl">About</h1>
+  <p class="text-md mt-2 lg:max-w-6xl md:max-w-xl">{{ page.content | safe }}</p>
+</main>
+{% endblock content %}

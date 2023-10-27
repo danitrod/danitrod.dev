@@ -542,6 +542,10 @@ video {
   margin-right: 1rem;
 }
 
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
 .mt-4 {
   margin-top: 1rem;
 }
@@ -672,6 +676,13 @@ a:hover {
   box-sizing: border-box;
 }
 
+.about {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 32rem;
+  text-align: center;
+}
+
 .post h1 {
   font-size: 1.875rem;
   line-height: 2.25rem;
@@ -691,4 +702,16 @@ a:hover {
 .hover\:text-slate-700:hover {
   --tw-text-opacity: 1;
   color: rgb(51 65 85 / var(--tw-text-opacity));
+}
+
+@media (min-width: 768px) {
+  .md\:max-w-xl {
+    max-width: 36rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lg\:max-w-6xl {
+    max-width: 72rem;
+  }
 }

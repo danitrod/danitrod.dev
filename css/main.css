@@ -29,6 +29,10 @@ a:hover {
   box-sizing: border-box;
 }
 
+.about {
+	@apply max-w-lg mx-auto text-center;
+}
+
 .post h1 {
   @apply text-3xl;
 }
