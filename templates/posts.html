@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block seo %}
+  {{ macros::seo(title="posts") }}
+{% endblock seo %}
+{% block content %}
+  <main class="flex flex-col items-center">
+    <h1 class="text-3xl">Posts</h1>
+    <ul class="mt-2">
+      {{ macros::list_latest_posts(posts=section.pages) }}
+    </ul>
+  </main>
+{% endblock content %}

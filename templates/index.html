@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block seo %}
+  {{ macros::seo(description="some thoughts and experiences from my life.") }}
+{% endblock seo %}
+{% block content %}
+  <main class="w-full flex flex-col items-center">
+    <h1 class="text-3xl">Daniel T. Rodrigues</h1>
+    <p class="mt-4">Some thoughts and experiences from my life.</p>
+    <div class="mt-8 flex flex-col w-full items-center">
+      <a href="/posts">
+        <h2 class="text-2xl underline">Latest Posts</h2>
+      </a>
+      <ul>
+        {% set section = get_section(path="posts/_index.md") %}
+        {{ macros::list_latest_posts(posts=section.pages) }}
+      </ul>
+    </div>
+  </main>
+{% endblock content %}

@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: 'Red Hat Text', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu,
+    Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+  background-color: #202033;
+  color: #ddddee;
+}
+
+code {
+  font-family: 'Red Hat Mono', monospace;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+p a {
+	color: #6F6FB0;
+}
+
+a:hover {
+  color: #aabbcc;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.about {
+	@apply max-w-lg mx-auto;
+}
+
+.about p {
+	@apply text-base mt-2 lg:max-w-6xl md:max-w-xl text-justify;
+}
+
+.post h1 {
+  @apply text-3xl;
+}
+
+.post p {
+  @apply text-sm mt-2;
+}
