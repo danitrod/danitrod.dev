@@ -1,18 +1,48 @@
-{%- macro list_latest_posts(posts) %}
-{% for post in posts.pages | sort(attribute="date") | reverse | slice(end=5) %}
+{%- macro list_latest_posts(posts) %} {% for post in posts |
+sort(attribute="date") | reverse | slice(end=5) %}
 <li class="pt-4 flex flex-col items-center">
-	<a href={{ post.permalink }}>
-		<h3 class="text-lg">{{ post.title }}</h3>
-	</a>
-<p class="text-sm italic">{{ post.date | date(format="%B %d, %Y") }}</p>
-<ul class="flex items-center">
-	{% for tag in post.extra.tags %}
-		<li class="m-2">
-			<a class="p-2 bg-slate-300 text-slate-800 rounded text-xs hover:bg-slate-200 hover:text-slate-700"
-				 href="{{ get_url(path="posts") }}?tag={{ tag }}">{{ tag }}</a>
-		</li>
-	{% endfor %}
-</ul>
+  <a href="{{ post.permalink }}">
+    <h3 class="text-lg">{{ post.title }}</h3>
+  </a>
+  <p class="text-sm italic">{{ post.date | date(format="%B %d, %Y") }}</p>
+  {% if post.extra.tags %}
+  <ul class="flex items-center">
+    {% for tag in post.extra.tags %}
+    <li
+      class="m-2 p-2 bg-slate-300 text-slate-800 rounded text-xs cursor-default"
+      title="Category: {{ tag }}"
+    >
+      {{ tag }}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
 </li>
-{% endfor %}
-{%- endmacro list_latest_posts %}
+{% endfor %} {%- endmacro list_latest_posts %} {% macro seo( title="",
+description="" ) %} {% if title %}
+<title>{{ title ~ ' | danitrod.dev' }}</title>
+{% else %}
+<title>danitrod.dev</title>
+{% set title="danitrod.dev" %} {% endif %} {% if description %}
+<meta name="description" content="{{ description }}" />
+{% endif %} {% if page.extra.keywords %}
+<meta name="keywords" content="{{ page.extra.keywords }}" />
+{% endif %}
+<meta name="author" content="Daniel T. Rodrigues" />
+
+<link rel="canonical" href="{{ current_url | safe }}" />
+<meta property="og:url" content="{{ current_url | safe }}" />
+<meta name="twitter:url" content="{{ current_url | safe }}" />
+
+{% if description %}
+<meta property="og:description" content="{{ description }}" />
+<meta name="twitter:description" content="{{ description }}" />
+{% endif %}
+
+<meta property="og:title" content="{{ title }}" />
+<meta name="twitter:title" content="{{ title }}" />
+
+<meta property="og:site_name" content="danitrod.dev" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:type" content="website" />
+{% endmacro %}

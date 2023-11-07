@@ -1,6 +1,10 @@
-{% extends "base.html" %} {% block content %}
-<main class="flex flex-col items-center p-4 about">
-  <h1 class="text-3xl">About</h1>
-  <p class="text-md mt-2 lg:max-w-6xl md:max-w-xl">{{ page.content | safe }}</p>
-</main>
+{% extends "base.html" %}
+{% block seo %}
+  {{ macros::seo(title="about") }}
+{% endblock seo %}
+{% block content %}
+  <main class="flex flex-col items-center p-4 about">
+    <h1 class="text-3xl mb-4">About me</h1>
+    {{ page.content | safe }}
+  </main>
 {% endblock content %}

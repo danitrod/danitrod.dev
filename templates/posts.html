@@ -1,13 +1,12 @@
-{% extends "base.html" %} {% block content %}
-<h1 class="title">{{ section.title }}</h1>
-<ul>
-  <!-- If you are using pagination, section.pages will be empty. You need to use the paginator object -->
-  {% for page in section.pages %}
-  <li><a href="{{ page.permalink | safe }}">{{ page.title }}</a>
-		{% for tag in page.extra.tags %}
-		<p>{{ tag }}</p>
-		{% endfor %}
-	</li>
-  {% endfor %}
-</ul>
+{% extends "base.html" %}
+{% block seo %}
+  {{ macros::seo(title="posts") }}
+{% endblock seo %}
+{% block content %}
+  <main class="flex flex-col items-center">
+    <h1 class="text-3xl">Posts</h1>
+    <ul class="mt-2">
+      {{ macros::list_latest_posts(posts=section.pages) }}
+    </ul>
+  </main>
 {% endblock content %}

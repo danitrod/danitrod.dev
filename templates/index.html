@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{% block seo %}
+  {{ macros::seo(description="some thoughts and experiences from my life.") }}
+{% endblock seo %}
 {% block content %}
   <main class="w-full flex flex-col items-center">
     <h1 class="text-3xl">Daniel T. Rodrigues</h1>
@@ -8,9 +11,8 @@
         <h2 class="text-2xl underline">Latest Posts</h2>
       </a>
       <ul>
-        {% set posts = get_section(path="posts/_index.md") %}
-
-        {{ macros::list_latest_posts(posts=posts) }}
+        {% set section = get_section(path="posts/_index.md") %}
+        {{ macros::list_latest_posts(posts=section.pages) }}
       </ul>
     </div>
   </main>
