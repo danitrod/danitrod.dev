@@ -42,9 +42,9 @@ a:hover {
 }
 
 .post h1 {
-  @apply text-3xl;
+  @apply text-2xl;
 }
 
 .post p {
-  @apply text-sm mt-2;
+  @apply text-base mt-2;
 }

@@ -1,4 +1,15 @@
 {% extends "base.html" %}
+{% block seo %}
+  {{ macros::seo(title=page.title) }}
+{% endblock seo %}
 {% block content %}
-  <article class="flex flex-col items-center post">{{ page.content | safe }}</article>
+  <article class="flex flex-col items-center post max-w-3xl mx-auto px-4">
+    <header class="text-left">
+      <h1>{{ page.title }}</h1>
+      <span class="opacity-50 text-sm">{{ page.date | date(format="%B %d, %Y") }}</span>
+    </header>
+    <main class="mt-2 text-justify">
+      {{ page.content | safe }}
+    </main>
+  </article>
 {% endblock content %}
