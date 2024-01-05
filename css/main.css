@@ -38,13 +38,25 @@ a:hover {
 }
 
 .about p {
-	@apply text-base mt-2 lg:max-w-6xl md:max-w-xl text-justify;
+	@apply text-base my-4 leading-loose lg:max-w-6xl md:max-w-xl text-justify;
 }
 
 .post h1 {
-  @apply text-2xl;
+  @apply text-3xl;
+}
+
+.post h2 {
+	@apply text-2xl my-4;
+}
+
+.post h3 {
+	@apply text-xl my-4;
 }
 
 .post p {
-  @apply text-base mt-2;
+  @apply text-base my-4 leading-loose;
+}
+
+.post ul {
+	@apply list-disc pl-4;
 }

@@ -29,6 +29,6 @@ the solution of an NP-Complete problem.
 
 ## Next steps?
 
-- Deploying the code
+- Deploying the parallel solution
 - Writting the whole UI in Rust/Wasm
-- Think of other strategies for task parallelization
+- Thinking of other strategies for task parallelization
