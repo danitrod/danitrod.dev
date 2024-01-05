@@ -730,6 +730,11 @@ a:hover {
   max-width: 32rem;
 }
 
+about h1 {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+}
+
 .about p {
   margin-top: 1rem;
   margin-bottom: 1rem;

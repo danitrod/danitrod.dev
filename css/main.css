@@ -37,6 +37,10 @@ a:hover {
 	@apply max-w-lg mx-auto;
 }
 
+about h1 {
+  @apply text-3xl;
+}
+
 .about p {
 	@apply text-base my-4 leading-loose lg:max-w-6xl md:max-w-xl text-justify;
 }
