@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="apple-touch-icon" sizes="180x180" href="https://danitrod.dev/apple-touch-icon.png"> <link rel="icon" type="image/png"
+    sizes="32x32" href="https://danitrod.dev/favicon-32x32.png"> <link
+    rel="icon" type="image/png" sizes="16x16" href="https://danitrod.dev/favicon-16x16.png"> <link rel="manifest" href="https://danitrod.dev/site.webmanifest"> <link rel="mask-icon" href="https://danitrod.dev/safari-pinned-tab.svg" color="#202030">
+    <meta name="msapplication-TileColor" content="#da532c" />
+    <meta name="theme-color" content="#202030" />
+    
+   
+<title>Parallelizing a crossword composer in the browser | danitrod.dev</title>
+  
+<meta name="author" content="Daniel T. Rodrigues" />
+
+<link rel="canonical" href="https://danitrod.dev/posts/parallelizing-a-crossword-solver-in-the-browser/" />
+<meta property="og:url" content="https://danitrod.dev/posts/parallelizing-a-crossword-solver-in-the-browser/" />
+<meta name="twitter:url" content="https://danitrod.dev/posts/parallelizing-a-crossword-solver-in-the-browser/" />
+
+
+
+<meta property="og:title" content="Parallelizing a crossword composer in the browser" />
+<meta name="twitter:title" content="Parallelizing a crossword composer in the browser" />
+
+<meta property="og:site_name" content="danitrod.dev" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:type" content="website" />
+
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Red+Hat+Mono&amp;family=Red+Hat+Text:wght@300;400;500;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link href="https://danitrod.dev/css/main.css" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="p-8 flex flex-row justify-between w-full">
+      <a href="/">
+        <h2>danitrod.dev</h2>
+      </a>
+      <div>
+        <a class="mr-4" href="/about">About</a
+        ><a class="mr-4" href="/posts">Posts</a
+        ><a
+          href="https://github.com/danitrod/danitrod.dev"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Source</a
+        >
+      </div>
+    </nav>
+    
+  <article class="flex flex-col items-center post max-w-3xl mx-auto px-4">
+    <header class="text-left">
+      <h1>Parallelizing a crossword composer in the browser</h1>
+      <span class="opacity-50 text-sm">November 10, 2023</span>
+    </header>
+    <main class="text-justify">
+      <h2 id="introduction">Introduction</h2>
+<p>Back in 2021, I was reading about <a href="https://webassembly.org/">WebAssembly</a> and decided to try it out
+for myself. I somehow ended up stumbling upon <a href="https://github.com/paulgb">Paul Butler</a>'s <a href="https://github.com/paulgb/crossword-composer">crossword
+composer</a> solution, which consists of a solver written
+in Rust, that compiles to Wasm and is called by a UI written in JavaScript. I got very intrigued
+by it. It looked like a great starting point to play a little bit with WebAssembly. However, the
+solution was already completed, what could I add to it?</p>
+<p>Well, it turns out the crossword composing problem is NP-Complete and it takes a while to solve even
+with relatively simple grids. You can test that in Butler's <a href="https://crossword.paulbutler.org/">deployed
+solution</a>. I figured I could optimize it by applying concurrent
+computing inside the browser, using another tool I was wanting to play around with -
+<a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API">Web Workers</a>. That sounded like
+an interesting project: applying concurrent computing inside the browser, using Wasm, to optimize
+the solution of an NP-Complete problem.</p>
+<h2 id="how-it-works">How it works</h2>
+<p><em>Note: The functionality described below was entirely engineered by Paul, this is just my
+interpretation of it.</em></p>
+<h3 id="solution-flow">Solution flow</h3>
+<p>The grid is encoded in such a way that every cell has an identifier that maps to a letter. Words are
+therefore mapped as an array of these identifiers, in such a way that words with intersections
+between themselves will share same identifiers for their matching positions. The solver receives as
+an input a list of these letter identifier arrays, and outputs a dictionary matching identifiers to
+letters to fill the grid.</p>
+<p>The diagram below tries to illustrate the entire flow.
+<img src="/assets/solver-flow.jpg" alt="Test" />
+<em>Flow</em></p>
+<h3 id="the-solver">The solver</h3>
+<p>The solver applies a backtracking approach to find words that fit all restrictions. It maps through
+the list of words, choosing words from a given dictionary that fits the restrictions of length and
+intersections. If no fitting word is found, it backtracks to the previous word in the list, and
+changes it to another word from the dictionary. The process repeats until either all combination
+possibilities are explored without success or the first solution is found.</p>
+<p>Two optimizations</p>
+<h3 id="parallelizing">Parallelizing</h3>
+<h2 id="conclusion">Conclusion</h2>
+<p>For Portuguese-speaking readers, you can check out a published version of an article I wrote on this
+project <a href="https://sol.sbc.org.br/index.php/eradsp/article/view/21918">here</a>.</p>
+<h2 id="next-steps">Next steps?</h2>
+<ul>
+<li>Deploying the parallel solution</li>
+<li>Writting the whole UI in Rust/Wasm</li>
+<li>Thinking of other strategies for task parallelization</li>
+</ul>
+
+    </main>
+  </article>
+
+    <footer class="p-8 flex w-full justify-center">
+      <a
+        href="https://github.com/danitrod"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="p-4"
+      >
+        <image src="https://danitrod.dev/assets/github.svg" alt="GitHub"
+        height="32" width="32" />
+      </a>
+      <a
+        href="https://linkedin.com/in/danitrod"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="p-4"
+      >
+        <image src="https://danitrod.dev/assets/linkedin.png" alt="LinkedIn"
+        height="32" width="32" />
+      </a>
+    </footer>
+  </body>
+</html>
