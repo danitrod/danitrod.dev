@@ -48,16 +48,18 @@ possibilities are explored without success or the first solution is found.
 
 There are a few optimizations to this solver. You can find in [Paul's repository](https://github.com/paulgb/crossword-composer?tab=readme-ov-file#auto-filler) a more in-depth explanation.
 
-### Parallelizing
+## Parallelizing
 
 The approach I took was simple, and probably still far from optimal, but it was a lot of fun to implement and
 yielded surprisingly good results. You can think of the whole backtracking solver algorithm as a
-depth-first search, and what I did was simply parallelize that search. If we have an X number of
+depth-first search, and what I did was simply parallelize that search. If we have X number of
 words to start searching, and Y available workers, we will split the starting words by the number
-of available workers and feed each worker with a balanced amount of starting words. I.e. we have
-1000 possible starting words, and 8 available workers, each worker will receive 125 words to start
+of available workers and feed each worker with a balanced amount of starting words.
+
+For example, if we have 1000 possible starting words, and 8 available workers, each worker will receive 125 words to start
 searching. That means we will be searching concurrently for at least 8 different paths, reducing
-the chances of losing much time on dead ends.
+the chances of losing much time on dead ends. Obviously, every worker will have the full dictionary available to search for the rest of the words,
+just the possible words for the starting grid positions are narrowed down.
 
 To implement this solution, I first tried to do everything in the solver, which is written in Rust
 and compiles to WebAssembly, but at the time controlling Web Workers from Rust/Wasm was very obscure.
@@ -66,6 +68,9 @@ code would simply get called from the workers with a given starting path and sta
 from there. The first worker to find a solution would signal back to the main thread to finish and
 terminate other workers. If all workers finish without a solution, it means we have no possible
 solution for given grid layout and dictionary.
+
+You can find the implementation [here](https://github.com/danitrod/crossword-composer) (and a bunch
+of failed attempts in other branches).
 
 ## Results
 
