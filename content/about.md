@@ -13,7 +13,7 @@ And currently, I'm working with [Embroker](https://www.embroker.com/), a B2B ins
 startup, where I'm helping them split their monolith into many single-responsibility Golang services in a
 microservice-oriented architecture.
 
-I have a bachelor's degree in Computer Science and am currently applying to start my master's
-in the field of high performance and distributed computing. As for other interests, I'm a solo traveler,
-Vipassana meditator, musician, and chess player ([invite me for a match!](https://www.chess.com/member/danitrod)). And
-I use Neovim, by the way.
+I have a bachelor's degree in Computer Science and am currently starting a master's in Applied Computing,
+looking to do research in the field of high performance and distributed computing. As for other interests, I'm a solo traveler,
+Vipassana meditator, musician, and chess player ([invite me for a match!](https://www.chess.com/member/danitrod)).
+And, maybe more importantly :D, a Neovim lover.
