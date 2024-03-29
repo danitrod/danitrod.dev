@@ -787,3 +787,8 @@ about h1 {
   list-style-type: disc;
   padding-left: 1rem;
 }
+
+.post ul li {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
