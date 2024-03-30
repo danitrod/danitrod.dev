@@ -40,8 +40,8 @@ _Crossword generation flow._
 
 ### The solver
 
-The solver utilizes a backtracking approach to find words that fit all restrictions. It maps through
-the list of words, choosing words from a given dictionary that fits the restrictions of length and
+The solver utilizes a backtracking approach to find words that satisty all restrictions. It maps through
+the list of words, choosing words from a given dictionary that satisty the restrictions of length and
 intersections. If no fitting word is found, it backtracks to the previous word in the list, and
 changes it to another word from the dictionary. The process repeats until either all combination
 possibilities are explored without success or the first solution is found.
@@ -61,8 +61,8 @@ searching. That means we will be searching concurrently for at least 8 different
 the chances of losing much time on dead ends. Obviously, every worker will have the full dictionary available to search for the rest of the words,
 just the possible words for the starting grid positions are narrowed down.
 
-To implement this solution, I first tried to do everything in the solver, which is written in Rust
-and compiles to WebAssembly, but at the time controlling Web Workers from Rust/Wasm was very obscure.
+To implement this solution, I first tried to do everything in the solver, but at the time
+controlling Web Workers from Rust/Wasm was very obscure.
 So I made use of the web UI in JS/Svelte to create and control the Web Workers, and the Rust/Wasm
 code would simply get called from the workers with a given starting path and start the solution
 from there. The first worker to find a solution would signal back to the main thread to finish and
@@ -105,15 +105,14 @@ Generation Problem, this experiment ended up showing me that parallelizing depth
 algorithms can lead to super-linear speedups, which is already very well known in the academia, but
 still, a very useful concept to have in mind.
 
-For future work, there are a few ideas, but I unfortunately don't have any plans to work on this anytime
-soon, so maybe in the future. Mainly:
+For future work, there are a few ideas, mainly:
 
-- Adding a toggle button to the UI to switch between parallel and sequential version, or even having
-  a "race mode".
 - Reiterating on the idea of writing the Web Worker controller from plain Rust/WebAssembly.
 - Thinking of other strategies for parallelization or optimizations for this approach.
 - Researching on utilizing shared data between different Web Workers (in my solution, each worker has
   to receive the full dictionary).
+- Adding a toggle button to the UI to switch between parallel and sequential version, or even having
+  a "race mode".
 - Adding ability to, after having a solution, choose between words that satisfy the restrictions
   for a given grid position.
 
