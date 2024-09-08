@@ -6,14 +6,33 @@ html,
 body {
   padding: 0;
   margin: 0;
-  font-family: 'Red Hat Text', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu,
-    Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+  font-family:
+    "Red Hat Text",
+    -apple-system,
+    BlinkMacSystemFont,
+    Segoe UI,
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    Fira Sans,
+    Droid Sans,
+    Helvetica Neue,
+    sans-serif;
   background-color: #202033;
   color: #ddddee;
 }
 
+pre {
+	@apply overflow-x-auto overflow-y-hidden;
+}
+
 code {
-  font-family: 'Red Hat Mono', monospace;
+  font-family: "Red Hat Mono", monospace;
+	background-color: #2d2d3a;
+	color: #f8f8f2;
+	padding: 0.2em 0.4em;
+	border-radius: 0.2em;
 }
 
 a {
@@ -21,50 +40,52 @@ a {
   text-decoration: none;
 }
 
-p a {
-	color: #6F6FB0;
-}
-
-a:hover {
-  color: #aabbcc;
-}
-
 * {
   box-sizing: border-box;
 }
 
 .about {
-	@apply max-w-lg mx-auto;
+  @apply max-w-lg mx-auto;
+
+  h1 {
+    @apply text-3xl;
+  }
+
+  p {
+    @apply text-base my-4 leading-loose;
+  }
 }
 
-about h1 {
-  @apply text-3xl;
-}
+.post {
+  h1 {
+    @apply text-3xl;
+  }
 
-.about p {
-	@apply text-base my-4 leading-loose lg:max-w-6xl md:max-w-xl text-justify;
-}
+  h2 {
+    @apply text-2xl my-4 text-center;
+  }
 
-.post h1 {
-  @apply text-3xl;
-}
+  h3 {
+    @apply text-xl my-4 text-center;
+  }
 
-.post h2 {
-	@apply text-2xl my-4;
-}
+  p {
+    @apply text-base my-2 leading-loose;
+  }
 
-.post h3 {
-	@apply text-xl my-4;
-}
+  ul {
+    @apply list-disc pl-4;
+  }
 
-.post p {
-  @apply text-base my-4 leading-loose;
-}
+  ul li {
+    @apply my-2;
+  }
 
-.post ul {
-	@apply list-disc pl-4;
-}
+  a {
+    color: #6f6fb0;
+  }
 
-.post ul li {
-	@apply my-2;
+  a:hover {
+    color: #aabbcc;
+  }
 }

@@ -3,12 +3,12 @@
   {{ macros::seo(title=page.title) }}
 {% endblock seo %}
 {% block content %}
-  <article class="flex flex-col items-center post max-w-3xl mx-auto px-4">
+  <article class="flex flex-col items-center post  max-w-3xl mx-auto px-4">
     <header class="text-left">
       <h1>{{ page.title }}</h1>
       <span class="opacity-50 text-sm">{{ page.date | date(format="%B %d, %Y") }}</span>
     </header>
-    <main class="text-justify">
+    <main class="text-justify max-w-full">
       {{ page.content | safe }}
     </main>
   </article>
