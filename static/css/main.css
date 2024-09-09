@@ -741,9 +741,24 @@ code {
   border-radius: 0.2em;
 }
 
-a {
+a:not(.post) {
   color: inherit;
   text-decoration: none;
+}
+
+a:not(.post):hover {
+  color: #aabbcc;
+  h3 {
+    text-decoration: underline;
+  }
+}
+
+a:not(.post):visited h3 {
+  color: #aabbcc;
+}
+
+a:not(.post):focus {
+  color: #bbccdd;
 }
 
 * {
@@ -781,18 +796,12 @@ a {
     margin-bottom: 1rem;
   }
   h2 {
-    text-align: center;
-  }
-  h2 {
     font-size: 1.5rem;
     line-height: 2rem;
   }
   h3 {
     margin-top: 1rem;
     margin-bottom: 1rem;
-  }
-  h3 {
-    text-align: center;
   }
   h3 {
     font-size: 1.25rem;
@@ -819,7 +828,8 @@ a {
     margin-top: 0.5rem;
     margin-bottom: 0.5rem;
   }
-  a {
+  p a,
+  li a {
     color: #6f6fb0;
   }
   a:hover {

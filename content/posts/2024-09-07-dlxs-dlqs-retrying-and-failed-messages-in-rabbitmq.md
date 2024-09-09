@@ -1,5 +1,5 @@
 +++
-title = "DLXs, DLQs, retrying and storing failed messages in RabbitMQ"
+title = "DLXs, DLQs, retrying and failed messages in RabbitMQ"
 [extra]
 tags = [ "Queues", "Async Processing", "Microservices", "RabbitMQ" ]
 +++
@@ -14,8 +14,9 @@ For example, let's say that you have an integration with an external service, an
 user registers to your application you need to send an HTTP request to this external service. This
 external service often stays down for maintenance on Monday mornings, and if you have users registered
 in this period and try to send HTTP requests to it, they will fail as the service will be down.
-This is where retries can come in handy. In this post I will focus on an approach specific for
-RabbitMQ users.
+You can continue the user registration, but still need to send the HTTP request when the external service
+is available again. This is where retries can come in handy. In this post I will focus on an approach
+specific for RabbitMQ users.
 
 ## RabbitMQ Dead-letter Headers
 
@@ -43,7 +44,7 @@ You can see more information about how these work on [RabbitMQ's docs](https://w
 Now, to use these headers to our advantage, we can create queues that will be used for retries.
 There is yet a third header that will be useful for us, the `x-message-ttl` header, to which
 we can set an amount of time in milliseconds after which the messages will be dropped from the queue.
-Note that this header can also be set either at a queue level or per message.
+Note that this header can also be set either at the queue level or per message.
 
 So, if we create our `main_queue` with the headers above, we can then create a `main_queue_retry`
 queue, and add these headers to it:
@@ -71,8 +72,9 @@ The next step is to add a condition for stopping, in case we reach a maximum num
 Every time a message is sent to another queue using the dead-letter headers, RabbitMQ adds or
 updates the `x-death` header in the message, which includes, among other data, a counter
 for the number of times the message has "died". This is exactly what we should use to stay aware of how many
-times we are retrying, and we can define a maximum number of retries for each use case, after
-which, we can simply acknowledge the message so it doesn't get routed to the retry queue anymore.
+times we are retrying. In our application, we can define a maximum number of retries that is
+acceptable for us depending on the use case, and after x-death's counter reaches that number, we
+can simply acknowledge the message so it doesn't get routed to the retry queue anymore.
 
 ## Storing failed messages
 
