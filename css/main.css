@@ -68,7 +68,7 @@ a:not(.post):focus {
   }
 
   p {
-    @apply text-base my-4 leading-loose;
+    @apply text-base my-4 leading-relaxed;
   }
 }
 
@@ -86,7 +86,7 @@ a:not(.post):focus {
   }
 
   p {
-    @apply text-base my-2 leading-loose;
+    @apply text-base my-2 leading-relaxed;
   }
 
   ul {
