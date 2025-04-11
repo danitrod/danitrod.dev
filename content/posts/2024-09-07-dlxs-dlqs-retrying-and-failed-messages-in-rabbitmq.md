@@ -2,6 +2,8 @@
 title = "DLXs, DLQs, retrying and failed messages in RabbitMQ"
 [extra]
 tags = [ "Queues", "Async Processing", "Microservices", "RabbitMQ" ]
+image_name = "queues.svg"
+description = "A guide to using RabbitMQ's dead-letter exchanges and queues to retry and store failed messages."
 +++
 
 ## Introduction

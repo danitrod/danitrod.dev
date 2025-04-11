@@ -1,6 +1,14 @@
 {% extends "base.html" %}
 {% block seo %}
-  {{ macros::seo(title=page.title) }}
+  {% if page.extra.image_name and page.extra.description %}
+    {{ macros::seo(title=page.title, image_name=page.extra.image_name, description=page.extra.description) }}
+  {% elif page.extra.image_name %}
+    {{ macros::seo(title=page.title, image_name=page.extra.image_name) }}
+  {% elif page.extra.description %}
+    {{ macros::seo(title=page.title, description=page.extra.description) }}
+  {% else %}
+    {{ macros::seo(title=page.title) }}
+  {% endif %}
 {% endblock seo %}
 {% block content %}
   <article class="flex flex-col items-center post  max-w-3xl mx-auto px-4">
