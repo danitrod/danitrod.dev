@@ -9,9 +9,9 @@ For styling I use [Tailwind](https://tailwindcss.com/) :)
 ### Pre-reqs
 
 1. [Install Zola](https://www.getzola.org/documentation/getting-started/installation/)
-2. [Install Tailwind](https://tailwindcss.com/docs/installation) (only if you need to change global CSS)
+2. Run `npm install` (only if you need to change global CSS)
 
 ### Steps
 
-Run `zola serve` in one terminal, and `npx tailwindcss -i css/main.css -o static/css/main.css -w` in
+Run `zola serve` in one terminal, and `npm run css:watch` in
 another in case you need to change the global CSS. Page will load at http://localhost:1111.
