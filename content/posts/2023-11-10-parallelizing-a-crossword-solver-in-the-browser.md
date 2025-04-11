@@ -2,7 +2,7 @@
 title = "Parallelizing a crossword composer in the browser"
 [extra]
 tags = [ "Rust", "Concurrency", "WebAssembly" ]
-image_name = "solver-flow.png"
+image_name = "speedup-social.jpg"
 description = "A study on parallelizing a crossword composer in the browser, using WebAssembly and Web Workers."
 +++
 
