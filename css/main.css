@@ -22,7 +22,7 @@ code {
   padding: 0.2em 0.4em;
   border-radius: 0.2em;
 }
-
+/*
 a:not(.post) {
   color: inherit;
   text-decoration: none;
@@ -42,6 +42,26 @@ a:not(.post):visited h3 {
 
 a:not(.post):focus {
   color: #bbccdd;
+} */
+
+a {
+  color: #6f6fb0;
+}
+
+a:visited {
+  color: #aabbcc;
+}
+
+a:hover {
+  color: #ccddee;
+}
+
+ul {
+  @apply list-disc pl-4;
+}
+
+ul li {
+  @apply my-2;
 }
 
 * {
@@ -53,6 +73,10 @@ a:not(.post):focus {
 
   h1 {
     @apply text-3xl;
+  }
+
+  h2 {
+    @apply text-xl my-4;
   }
 
   p {
@@ -75,14 +99,6 @@ a:not(.post):focus {
 
   p {
     @apply text-base my-2 leading-relaxed;
-  }
-
-  ul {
-    @apply list-disc pl-4;
-  }
-
-  ul li {
-    @apply my-2;
   }
 
   p a,
