@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="apple-touch-icon" sizes="180x180" href="https://danitrod.dev/apple-touch-icon.png"> <link rel="icon" type="image/png"
+    sizes="32x32" href="https://danitrod.dev/favicon-32x32.png"> <link
+    rel="icon" type="image/png" sizes="16x16" href="https://danitrod.dev/favicon-16x16.png"> <link rel="manifest" href="https://danitrod.dev/site.webmanifest"> <link rel="mask-icon" href="https://danitrod.dev/safari-pinned-tab.svg" color="#202030">
+    <meta name="msapplication-TileColor" content="#da532c" />
+    <meta name="theme-color" content="#202030" />
+    
+  
+     
+<title>Parallelizing a crossword composer in the browser | danitrod.dev</title>
+ 
+<meta name="description" content="A study on parallelizing a crossword puzzle composer in the browser, using WebAssembly and Web Workers." />
+ 
+<meta name="author" content="Daniel T. Rodrigues" />
+
+<link rel="canonical" href="https://danitrod.dev/posts/parallelizing-a-crossword-solver-in-the-browser/" />
+<meta property="og:url" content="https://danitrod.dev/posts/parallelizing-a-crossword-solver-in-the-browser/" />
+<meta name="twitter:url" content="https://danitrod.dev/posts/parallelizing-a-crossword-solver-in-the-browser/" />
+
+
+<meta property="og:description" content="A study on parallelizing a crossword puzzle composer in the browser, using WebAssembly and Web Workers." />
+<meta name="twitter:description" content="A study on parallelizing a crossword puzzle composer in the browser, using WebAssembly and Web Workers." />
+ 
+<meta
+  property="og:image"
+  content="https://danitrod.dev/assets/speedup-social.jpg"
+/>
+<meta
+  name="twitter:image"
+  content="https://danitrod.dev/assets/speedup-social.jpg"
+/>
+
+
+<meta property="og:title" content="Parallelizing a crossword composer in the browser" />
+<meta name="twitter:title" content="Parallelizing a crossword composer in the browser" />
+
+<meta property="og:site_name" content="danitrod.dev" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:type" content="website" />
+
+  
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Red+Hat+Mono&amp;family=Red+Hat+Text:wght@300;400;500;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link href="https://danitrod.dev/css/main.css" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="p-8 flex flex-row justify-between w-full">
+      <a href="/">
+        <h2>danitrod.dev</h2>
+      </a>
+      <div>
+        <a class="mr-4" href="/about">About</a
+        ><a class="mr-4" href="/posts">Posts</a
+        ><a
+          href="https://github.com/danitrod/danitrod.dev"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Source</a
+        >
+      </div>
+    </nav>
+    
+  <article class="flex flex-col items-center post  max-w-3xl mx-auto px-4">
+    <header class="text-left">
+      <h1>Parallelizing a crossword composer in the browser</h1>
+      <span class="opacity-50 text-sm">November 10, 2023</span>
+    </header>
+    <main class="text-justify max-w-full">
+      <h2 id="introduction"><a class="zola-anchor" href="#introduction" aria-label="Anchor link for: introduction">Introduction</a></h2>
+<p>Back in 2021, I was reading about <a href="https://webassembly.org/">WebAssembly</a> and decided to try it out
+for myself. I somehow ended up stumbling upon <a href="https://github.com/paulgb">Paul Butler</a>'s <a href="https://github.com/paulgb/crossword-composer">crossword
+composer</a> solution, which consists of a solver written
+in Rust, that compiles to Wasm and is called by a UI written in JavaScript. I got very intrigued
+by it. It looked like a great starting point to play a little bit with WebAssembly. However, the
+solution was already completed, what could I add to it?</p>
+<p>Well, it turns out the crossword composing problem is NP-Complete and it takes a while to solve even
+with relatively simple grids. You can test that in Butler's <a href="https://crossword.paulbutler.org/">deployed
+solution</a>. I figured I could optimize it by applying concurrent
+computing inside the browser, using another tool I was wanting to play around with -
+<a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API">Web Workers</a>. That sounded like
+an interesting project: applying concurrent computing inside the browser, using Wasm, to optimize
+the solution of an NP-Complete problem.</p>
+<h2 id="how-it-works"><a class="zola-anchor" href="#how-it-works" aria-label="Anchor link for: how-it-works">How it works</a></h2>
+<p><em>Note: The functionality described below was entirely engineered by Paul, this is just my
+interpretation of it.</em></p>
+<h3 id="solution-flow"><a class="zola-anchor" href="#solution-flow" aria-label="Anchor link for: solution-flow">Solution flow</a></h3>
+<p>The grid is encoded in such a way that every cell has an identifier that maps to a letter. Words are
+therefore mapped as an array of these identifiers, in such a way that words with intersections
+between themselves will share same identifiers for their intersecting positions. The solver receives as
+an input a list of these letter identifier arrays, and outputs a dictionary matching identifiers to
+letters to fill the grid.</p>
+<p>The diagram below tries to illustrate the entire flow.
+<img src="/assets/solver-flow.png" alt="Solver flow" />
+<em>Crossword generation flow.</em></p>
+<h3 id="the-solver"><a class="zola-anchor" href="#the-solver" aria-label="Anchor link for: the-solver">The solver</a></h3>
+<p>The solver utilizes a backtracking approach to find words that satisty all restrictions. It maps through
+the list of words, choosing words from a given dictionary that satisty the restrictions of length and
+intersections. If no fitting word is found, it backtracks to the previous word in the list, and
+changes it to another word from the dictionary. The process repeats until either all combination
+possibilities are explored without success or the first solution is found.</p>
+<p>There are a few optimizations to this solver. You can find in <a href="https://github.com/paulgb/crossword-composer?tab=readme-ov-file#auto-filler">Paul's repository</a> a more in-depth explanation.</p>
+<h2 id="parallelizing"><a class="zola-anchor" href="#parallelizing" aria-label="Anchor link for: parallelizing">Parallelizing</a></h2>
+<p>The approach I took was simple, and probably still far from optimal, but it was a lot of fun to implement and
+yielded surprisingly good results. You can think of the whole backtracking solver algorithm as a
+depth-first search, and what I did was simply parallelize that search. If we have X number of
+words to start searching, and Y available workers, we will split the starting words by the number
+of available workers and feed each worker with a balanced amount of starting words.</p>
+<p>For example, if we have 1000 possible starting words, and 8 available workers, each worker will receive 125 words to start
+searching. That means we will be searching concurrently for at least 8 different paths, reducing
+the chances of losing much time on dead ends. Obviously, every worker will have the full dictionary available to search for the rest of the words,
+just the possible words for the starting grid positions are narrowed down.</p>
+<p>To implement this solution, I first tried to do everything in the solver, but at the time
+controlling Web Workers from Rust/Wasm was very obscure.
+So I made use of the web UI in JS/Svelte to create and control the Web Workers, and the Rust/Wasm
+code would simply get called from the workers with a given starting path and start the solution
+from there. The first worker to find a solution would signal back to the main thread to finish and
+terminate other workers. If all workers finish without a solution, it means we have no possible
+solution for given grid layout and dictionary.</p>
+<p>You can find the implementation <a href="https://github.com/danitrod/crossword-composer">here</a> (and a bunch
+of failed attempts in other branches).</p>
+<h2 id="results"><a class="zola-anchor" href="#results" aria-label="Anchor link for: results">Results</a></h2>
+<p>As we are parallelizing basically all of the work being done, we can expect to have fairly high
+speedups, close to linear. However, spawning Web Workers generally has a high overhead
+(<a href="https://www.w3.org/TR/2021/NOTE-workers-20210128/">see this</a>). It turns out the results of the
+experiment were very undeterministic, as you can see below.</p>
+<p><img src="/assets/speedup.jpg" alt="Speedup chart" />
+<em>Speedup results by number of threads used, for different grid layouts. Experiments ran with i9
+processor, 8 cores, and in Firefox.</em></p>
+<p>Even super-linear speedups were achieved, which for me at the time was very surprising. It is very
+intuitive if you think about it, though: going back to the of the nature of the problem, we can
+understand that the &quot;best&quot; path, or at least one of the better ones, can be in any path of the
+search. And the more searchers we have, searching through different branches of this tree, better
+are the odds of us finding those more quickly.</p>
+<p>Analyzing the 8x8 grid results, for example, we can observe that from one to two
+threads there was no speedup increase, which means probably the second thread couldn't find any
+quicker solution with the paths it was given, compared to the ones the first one already had. If
+we look at four threads, there is already at least one quicker path found, giving us a 1.7 speedup,
+and at 8 threads, we achieve the super-linear speedup of 12.1. This could mean that one of the quickest
+paths is already given to one of the 8 threads, because if we look at 16 threads, there is a decrease
+in speedup, so we are probably only adding the overhead of Web Workers there.</p>
+<h2 id="conclusions"><a class="zola-anchor" href="#conclusions" aria-label="Anchor link for: conclusions">Conclusions</a></h2>
+<p>I believe this study was still too preliminary to reach any deeper conclusions, but there was definetely some
+valuable learning here. Apart from learning a ton about WebAssembly, Web Workers and the Crossword
+Generation Problem, this experiment ended up showing me that parallelizing depth-first search based
+algorithms can lead to super-linear speedups, which is already very well known in the academia, but
+still, a very useful concept to have in mind.</p>
+<p>For future work, there are a few ideas, mainly:</p>
+<ul>
+<li>Reiterating on the idea of writing the Web Worker controller from plain Rust/WebAssembly.</li>
+<li>Thinking of other strategies for parallelization or optimizations for this approach.</li>
+<li>Researching on utilizing shared data between different Web Workers (in my solution, each worker has
+to receive the full dictionary).</li>
+<li>Adding a toggle button to the UI to switch between parallel and sequential version, or even having
+a &quot;race mode&quot;.</li>
+<li>Adding ability to, after having a solution, choose between words that satisfy the restrictions
+for a given grid position.</li>
+</ul>
+<p>For Portuguese-speaking readers, you can check out a published version of an article I wrote on this
+project <a href="https://sol.sbc.org.br/index.php/eradsp/article/view/21918">here</a>.</p>
+
+    </main>
+  </article>
+
+    <footer class="p-8 flex w-full justify-center">
+      <a
+        href="https://github.com/danitrod"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="p-4"
+      >
+        <image src="https://danitrod.dev/assets/github.svg" alt="GitHub"
+        height="32" width="32" />
+      </a>
+      <a
+        href="https://linkedin.com/in/danitrod"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="p-4"
+      >
+        <image src="https://danitrod.dev/assets/linkedin.png" alt="LinkedIn"
+        height="32" width="32" />
+      </a>
+    </footer>
+
+    <!-- Cloudflare Web Analytics -->
+    <script
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "19331285159d47aa90617faf377e459a"}'
+    ></script>
+    <!-- End Cloudflare Web Analytics -->
+  </body>
+</html>
