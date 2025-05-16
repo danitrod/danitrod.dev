@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block seo %}
-  {% if page.extra.image_name and page.extra.description %}
-    {{ macros::seo(title=page.title, image_name=page.extra.image_name, description=page.extra.description) }}
-  {% elif page.extra.image_name %}
-    {{ macros::seo(title=page.title, image_name=page.extra.image_name) }}
+  {% if page.extra.social_image and page.extra.description %}
+    {{ macros::seo(title=page.title, social_image=page.extra.social_image, description=page.extra.description) }}
+  {% elif page.extra.social_image %}
+    {{ macros::seo(title=page.title, social_image=page.extra.social_image) }}
   {% elif page.extra.description %}
     {{ macros::seo(title=page.title, description=page.extra.description) }}
   {% else %}

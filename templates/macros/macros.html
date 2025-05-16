@@ -19,7 +19,7 @@ sort(attribute="date") | reverse | slice(end=5) %}
   {% endif %}
 </li>
 {% endfor %} {%- endmacro list_latest_posts %} {% macro seo( title="",
-description="", image_name="" ) %} {% if title %}
+description="", social_image="" ) %} {% if title %}
 <title>{{ title ~ ' | danitrod.dev' }}</title>
 {% else %}
 <title>danitrod.dev</title>
@@ -37,14 +37,14 @@ description="", image_name="" ) %} {% if title %}
 {% if description %}
 <meta property="og:description" content="{{ description }}" />
 <meta name="twitter:description" content="{{ description }}" />
-{% endif %} {% if image_name %}
+{% endif %} {% if social_image %}
 <meta
   property="og:image"
-  content="https://danitrod.dev/assets/{{ image_name }}"
+  content="https://danitrod.dev/assets/{{ social_image }}"
 />
 <meta
   name="twitter:image"
-  content="https://danitrod.dev/assets/{{ image_name }}"
+  content="https://danitrod.dev/assets/{{ social_image }}"
 />
 {% endif %}
 

@@ -27,6 +27,7 @@
     --text-3xl: 1.875rem;
     --text-3xl--line-height: calc(2.25 / 1.875);
     --leading-relaxed: 1.625;
+    --radius-lg: 0.5rem;
     --default-font-family: var(--font-sans);
     --default-mono-font-family: var(--font-mono);
   }
@@ -310,6 +311,7 @@ html, body {
 pre {
   overflow-x: auto;
   overflow-y: hidden;
+  background-color: #2d2d3a !important;
 }
 code {
   font-family: "Red Hat Mono", monospace;
@@ -384,6 +386,10 @@ a:hover {
   }
   ul li {
     margin-block: calc(var(--spacing) * 2);
+  }
+  pre {
+    border-radius: var(--radius-lg);
+    padding: calc(var(--spacing) * 4);
   }
 }
 @property --tw-rotate-x {
