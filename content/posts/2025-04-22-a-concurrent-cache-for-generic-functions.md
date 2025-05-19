@@ -39,7 +39,7 @@ arguments can be received.
 
 ## The Problem
 
-With thousands of incoming requests for this and other rules, using custom functions that would do
+With thousands of incoming requests, triggering custom functions that would do
 complex processing, database calls, and even calls to other services, rules were taking seconds to
 finish. The system started to get overloaded, and database calls started to slow down a lot. This
 began to affect other parts of the system relying on the database.
@@ -155,16 +155,6 @@ func (f *CacheFunction) Key() string {
 	return f.fn.Key()
 }
 
-func (f *CacheFunction) createCacheKey(args ...any) string {
-	cacheKey := f.Key()
-
-	for i := 0; i < len(args); i++ {
-		cacheKey = fmt.Sprintf("%s:%v", cacheKey, args[i])
-	}
-
-	return cacheKey
-}
-
 func (f *CacheFunction) Value(args ...any) (any, error) {
 	cacheKey := f.createCacheKey(args...)
 
@@ -174,7 +164,7 @@ func (f *CacheFunction) Value(args ...any) (any, error) {
 		f.mu.Unlock() // As this thread will be a waiter or instant result, safe to unlock
 		cachedResult, ok := cached.(CacheResult)
 		if !ok {
-			return nil, errors.New("Could not parse cached result")
+			return nil, errors.New("could not parse cached result")
 		}
 
 		if cachedResult.hasResult {
@@ -185,7 +175,7 @@ func (f *CacheFunction) Value(args ...any) (any, error) {
 			result := <-cachedResult.ch
 			return result, nil
 		}
-		return nil, errors.New("Invalid cache value found")
+		return nil, errors.New("invalid cache value found")
 	}
 
 	ch := make(chan any)
@@ -217,6 +207,16 @@ func (f *CacheFunction) Value(args ...any) (any, error) {
 	f.mu.Unlock() // Final unlock
 
 	return result, nil
+}
+
+func (f *CacheFunction) createCacheKey(args ...any) string {
+	cacheKey := f.Key()
+
+	for i := 0; i < len(args); i++ {
+		cacheKey = fmt.Sprintf("%s:%v", cacheKey, args[i])
+	}
+
+	return cacheKey
 }
 
 func (f *CacheFunction) addWaiter(cacheKey string) {
