@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>https://danitrod.dev/</loc>
+    </url>
+    <url>
+        <loc>https://danitrod.dev/about/</loc>
+    </url>
+    <url>
+        <loc>https://danitrod.dev/posts/</loc>
+    </url>
+    <url>
+        <loc>https://danitrod.dev/posts/a-concurrent-cache-for-generic-functions/</loc>
+        <lastmod>2025-04-22</lastmod>
+    </url>
+    <url>
+        <loc>https://danitrod.dev/posts/dlxs-dlqs-retrying-and-failed-messages-in-rabbitmq/</loc>
+        <lastmod>2024-09-07</lastmod>
+    </url>
+    <url>
+        <loc>https://danitrod.dev/posts/parallelizing-a-crossword-solver-in-the-browser/</loc>
+        <lastmod>2023-11-10</lastmod>
+    </url>
+</urlset>

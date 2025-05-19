@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="apple-touch-icon" sizes="180x180" href="https://danitrod.dev/apple-touch-icon.png"> <link rel="icon" type="image/png"
+    sizes="32x32" href="https://danitrod.dev/favicon-32x32.png"> <link
+    rel="icon" type="image/png" sizes="16x16" href="https://danitrod.dev/favicon-16x16.png"> <link rel="manifest" href="https://danitrod.dev/site.webmanifest"> <link rel="mask-icon" href="https://danitrod.dev/safari-pinned-tab.svg" color="#202030">
+    <meta name="msapplication-TileColor" content="#da532c" />
+    <meta name="theme-color" content="#202030" />
+    
+  
+     
+<title>DLXs, DLQs, retrying and failed messages in RabbitMQ | danitrod.dev</title>
+ 
+<meta name="description" content="A guide to using RabbitMQ&#x27;s dead-letter exchanges and queues to retry and persistently store failed messages." />
+ 
+<meta name="author" content="Daniel T. Rodrigues" />
+
+<link rel="canonical" href="https://danitrod.dev/posts/dlxs-dlqs-retrying-and-failed-messages-in-rabbitmq/" />
+<meta property="og:url" content="https://danitrod.dev/posts/dlxs-dlqs-retrying-and-failed-messages-in-rabbitmq/" />
+<meta name="twitter:url" content="https://danitrod.dev/posts/dlxs-dlqs-retrying-and-failed-messages-in-rabbitmq/" />
+
+
+<meta property="og:description" content="A guide to using RabbitMQ&#x27;s dead-letter exchanges and queues to retry and persistently store failed messages." />
+<meta name="twitter:description" content="A guide to using RabbitMQ&#x27;s dead-letter exchanges and queues to retry and persistently store failed messages." />
+ 
+<meta
+  property="og:image"
+  content="https://danitrod.dev/assets/queues-social.jpg"
+/>
+<meta
+  name="twitter:image"
+  content="https://danitrod.dev/assets/queues-social.jpg"
+/>
+
+
+<meta property="og:title" content="DLXs, DLQs, retrying and failed messages in RabbitMQ" />
+<meta name="twitter:title" content="DLXs, DLQs, retrying and failed messages in RabbitMQ" />
+
+<meta property="og:site_name" content="danitrod.dev" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:type" content="website" />
+
+  
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Red+Hat+Mono&amp;family=Red+Hat+Text:wght@300;400;500;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link href="https://danitrod.dev/css/main.css" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="p-8 flex flex-row justify-between w-full">
+      <a href="/">
+        <h2>danitrod.dev</h2>
+      </a>
+      <div>
+        <a class="mr-4" href="/about">About</a
+        ><a class="mr-4" href="/posts">Posts</a
+        ><a
+          href="https://github.com/danitrod/danitrod.dev"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Source</a
+        >
+      </div>
+    </nav>
+    
+  <article class="flex flex-col items-center post  max-w-3xl mx-auto px-4">
+    <header class="text-left">
+      <h1>DLXs, DLQs, retrying and failed messages in RabbitMQ</h1>
+      <span class="opacity-50 text-sm">September 07, 2024</span>
+    </header>
+    <main class="text-justify max-w-full">
+      <h2 id="introduction"><a class="zola-anchor" href="#introduction" aria-label="Anchor link for: introduction">Introduction</a></h2>
+<p>In an event-driven architecture, it is possible at some point you will have an event that can perhaps
+not be processed at the time it is emitted, but it can be successfully done at some later point in
+time.</p>
+<p>For example, let's say that you have an integration with an external service, and whenever a new
+user registers to your application you need to send an HTTP request to this external service. This
+external service often stays down for maintenance on Monday mornings, and if you have users registered
+in this period and try to send HTTP requests to it, they will fail as the service will be down.
+You can continue the user registration, but still need to send the HTTP request when the external service
+is available again. This is where retries can come in handy. In this post I will focus on an approach
+specific for RabbitMQ users.</p>
+<h2 id="rabbitmq-dead-letter-headers"><a class="zola-anchor" href="#rabbitmq-dead-letter-headers" aria-label="Anchor link for: rabbitmq-dead-letter-headers">RabbitMQ Dead-letter Headers</a></h2>
+<p>You can control the flow of rejected messages in RabbitMQ through headers, which can be defined either
+at the queue level or per message. They are namely the <code>x-dead-letter-exchange</code> and the
+<code>x-dead-letter-routing-key</code> headers, which basically state that messages with it that are rejected
+will be published to that exchange, with that routing key.</p>
+<p>So if you declare, for example, a queue <code>main_queue</code>, with the following headers:</p>
+<pre data-lang="json" style="background-color:#2b303b;color:#c0c5ce;" class="language-json "><code class="language-json" data-lang="json"><span>{
+</span><span>  &quot;</span><span style="color:#a3be8c;">x-dead-letter-exchange</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">dlx.direct</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">x-dead-letter-routing-key</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">main_queue.retry</span><span>&quot;
+</span><span>}
+</span></code></pre>
+<p>When a message from <code>main_queue</code> is rejected (or nacked) with requeue=false, the same message is
+going to be routed to the <code>dlx.direct</code> exchange, with the <code>main_queue.retry</code> routing key.</p>
+<p>You can see more information about how these work on <a href="https://www.rabbitmq.com/docs/dlx">RabbitMQ's docs</a>.</p>
+<h2 id="using-dlx-for-retries"><a class="zola-anchor" href="#using-dlx-for-retries" aria-label="Anchor link for: using-dlx-for-retries">Using DLX for retries</a></h2>
+<p>Now, to use these headers to our advantage, we can create queues that will be used for retries.
+There is yet a third header that will be useful for us, the <code>x-message-ttl</code> header, to which
+we can set an amount of time in milliseconds after which the messages will be dropped from the queue.
+Note that this header can also be set either at the queue level or per message.</p>
+<p>So, if we create our <code>main_queue</code> with the headers above, we can then create a <code>main_queue_retry</code>
+queue, and add these headers to it:</p>
+<pre data-lang="json" style="background-color:#2b303b;color:#c0c5ce;" class="language-json "><code class="language-json" data-lang="json"><span>{
+</span><span>  &quot;</span><span style="color:#a3be8c;">x-message-ttl</span><span>&quot;: </span><span style="color:#d08770;">60000</span><span>,
+</span><span>  &quot;</span><span style="color:#a3be8c;">x-dead-letter-exchange</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">amq.topic</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">x-dead-letter-routing-key</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">main_queue.retry</span><span>&quot;
+</span><span>}
+</span></code></pre>
+<p>With them, we are stating that every message in this queue will expire after one minute, and be
+routed to the <code>amq.topic</code> exchange with the <code>main_queue.retry</code> routing key.</p>
+<p>Now, we can bind our <code>main_queue</code> to the <code>amq.topic</code> exchange with the <code>main_queue.retry</code> routing key,
+bind our <code>main_queue_retry</code> to the <code>dlx.topic</code> exchange with the <code>main_queue.retry</code> routing key, and
+we have retries setup. Every message rejected from the main queue will go to the retry queue, stay
+there for one minute, and then be routed back to the main queue for reprocessing. Please note that
+as it is, this may cause an infinite loop of reprocessing if the messages keep failing to be processed!
+The next step is to add a condition for stopping, in case we reach a maximum number of retries.</p>
+<h2 id="the-x-death-header"><a class="zola-anchor" href="#the-x-death-header" aria-label="Anchor link for: the-x-death-header">The x-death header</a></h2>
+<p>Every time a message is sent to another queue using the dead-letter headers, RabbitMQ adds or
+updates the <code>x-death</code> header in the message, which includes, among other data, a counter
+for the number of times the message has &quot;died&quot;. This is exactly what we should use to stay aware of how many
+times we are retrying. In our application, we can define a maximum number of retries that is
+acceptable for us depending on the use case, and after x-death's counter reaches that number, we
+can simply acknowledge the message so it doesn't get routed to the retry queue anymore.</p>
+<h2 id="storing-failed-messages"><a class="zola-anchor" href="#storing-failed-messages" aria-label="Anchor link for: storing-failed-messages">Storing failed messages</a></h2>
+<p>After the maximum number of retries is reached, it is a good practice to have even a third queue,
+where the messages that really failed after all retries can stay stored, and later be analyzed if
+needed. This is technically the real dead-letter queue (DLQ), or failed queue, and messages in there
+we can consider in fact &quot;dead&quot;. To declare the final DLQ, we don't need any headers, as the messages
+in it shouldn't expire, and shouldn't route back to any other queue.</p>
+<p>Since in our example we are already using the <code>x-dead-letter-exchange</code> header for retries and reprocessing,
+we can't add another one for the failed queue. In this case, we will need to explicitly publish the
+<em>really</em> failed messages to the final DLQ.</p>
+<h2 id="conclusion"><a class="zola-anchor" href="#conclusion" aria-label="Anchor link for: conclusion">Conclusion</a></h2>
+<p>With this approach, we can add some robustness to our event-driven system and allow for retrying
+the processing of messages that can possibly fail, even storing them if they fail too many times in
+order to not lose any data.</p>
+<p>Below is a simple representation of how this flow happens, with two publishers publishing to
+two different routing keys bound to a main queue, which on error sends the message over to a retry queue,
+which in turn sends it back to the main queue under a new routing key. After sufficient fails, the
+message is stored in a final DLQ.</p>
+<p><img src="/assets/queues.svg" alt="Queue flow" /></p>
+<h2 id="references"><a class="zola-anchor" href="#references" aria-label="Anchor link for: references">References</a></h2>
+<ul>
+<li><a href="https://www.rabbitmq.com/docs/dlx">RabbitMQ docs: DLX</a></li>
+<li><a href="https://www.rabbitmq.com/docs/ttl#per-queue-message-ttl">RabbitMQ docs: per queue TTL</a></li>
+</ul>
+
+    </main>
+  </article>
+
+    <footer class="p-8 flex w-full justify-center">
+      <a
+        href="https://github.com/danitrod"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="p-4"
+      >
+        <image src="https://danitrod.dev/assets/github.svg" alt="GitHub"
+        height="32" width="32" />
+      </a>
+      <a
+        href="https://linkedin.com/in/danitrod"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="p-4"
+      >
+        <image src="https://danitrod.dev/assets/linkedin.png" alt="LinkedIn"
+        height="32" width="32" />
+      </a>
+    </footer>
+
+    <!-- Cloudflare Web Analytics -->
+    <script
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "19331285159d47aa90617faf377e459a"}'
+    ></script>
+    <!-- End Cloudflare Web Analytics -->
+  </body>
+</html>

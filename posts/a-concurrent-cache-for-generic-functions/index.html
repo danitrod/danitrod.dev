@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="apple-touch-icon" sizes="180x180" href="https://danitrod.dev/apple-touch-icon.png"> <link rel="icon" type="image/png"
+    sizes="32x32" href="https://danitrod.dev/favicon-32x32.png"> <link
+    rel="icon" type="image/png" sizes="16x16" href="https://danitrod.dev/favicon-16x16.png"> <link rel="manifest" href="https://danitrod.dev/site.webmanifest"> <link rel="mask-icon" href="https://danitrod.dev/safari-pinned-tab.svg" color="#202030">
+    <meta name="msapplication-TileColor" content="#da532c" />
+    <meta name="theme-color" content="#202030" />
+    
+  
+     
+<title>A concurrent cache for generic functions | danitrod.dev</title>
+ 
+<meta name="description" content="A concurrent cache function in Go, using channels and goroutines." />
+ 
+<meta name="author" content="Daniel T. Rodrigues" />
+
+<link rel="canonical" href="https://danitrod.dev/posts/a-concurrent-cache-for-generic-functions/" />
+<meta property="og:url" content="https://danitrod.dev/posts/a-concurrent-cache-for-generic-functions/" />
+<meta name="twitter:url" content="https://danitrod.dev/posts/a-concurrent-cache-for-generic-functions/" />
+
+
+<meta property="og:description" content="A concurrent cache function in Go, using channels and goroutines." />
+<meta name="twitter:description" content="A concurrent cache function in Go, using channels and goroutines." />
+ 
+
+<meta property="og:title" content="A concurrent cache for generic functions" />
+<meta name="twitter:title" content="A concurrent cache for generic functions" />
+
+<meta property="og:site_name" content="danitrod.dev" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:type" content="website" />
+
+  
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Red+Hat+Mono&amp;family=Red+Hat+Text:wght@300;400;500;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link href="https://danitrod.dev/css/main.css" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="p-8 flex flex-row justify-between w-full">
+      <a href="/">
+        <h2>danitrod.dev</h2>
+      </a>
+      <div>
+        <a class="mr-4" href="/about">About</a
+        ><a class="mr-4" href="/posts">Posts</a
+        ><a
+          href="https://github.com/danitrod/danitrod.dev"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Source</a
+        >
+      </div>
+    </nav>
+    
+  <article class="flex flex-col items-center post  max-w-3xl mx-auto px-4">
+    <header class="text-left">
+      <h1>A concurrent cache for generic functions</h1>
+      <span class="opacity-50 text-sm">April 22, 2025</span>
+    </header>
+    <main class="text-justify max-w-full">
+      <h2 id="introduction"><a class="zola-anchor" href="#introduction" aria-label="Anchor link for: introduction">Introduction</a></h2>
+<p>I once developed a business rules engine system to automate decisions
+based on data and conditions. The idea was to write rule conditions as plain text expressions with
+the <a href="https://github.com/expr-lang/expr">Expr library</a>, and schedule rules to execute at intervals.
+Each rule also had an action ID, which would define what to do if the condition was met. We defined
+custom functions with more advanced functionality to make use of them in the condition expressions.</p>
+<p>To give a simplified example, a rule with this condition would only be satisfied if the given
+request was created 48 or more hours ago:</p>
+<pre data-lang="go" style="background-color:#2b303b;color:#c0c5ce;" class="language-go "><code class="language-go" data-lang="go"><span style="color:#bf616a;">hoursSince</span><span>(</span><span style="color:#bf616a;">getRequestByID</span><span>(</span><span style="color:#bf616a;">event</span><span>.</span><span style="color:#bf616a;">Data</span><span>.</span><span style="color:#bf616a;">request_id</span><span>).</span><span style="color:#bf616a;">CreatedDate</span><span>) &gt;= </span><span style="color:#d08770;">48
+</span></code></pre>
+<ul>
+<li><code>hoursSince</code> is a custom function that returns the number of hours since the given <code>time.Time</code></li>
+<li><code>getRequestByID</code> is a custom function that fetches a request in the database by its ID</li>
+<li><code>event</code> is what is sent to the rule engine at processing time, containing the request ID</li>
+</ul>
+<p>Think of the custom function as this interface:</p>
+<pre data-lang="go" style="background-color:#2b303b;color:#c0c5ce;" class="language-go "><code class="language-go" data-lang="go"><span style="color:#b48ead;">type </span><span>Function </span><span style="color:#b48ead;">interface </span><span>{
+</span><span>	</span><span style="color:#8fa1b3;">Key</span><span>() </span><span style="color:#b48ead;">string
+</span><span>	</span><span style="color:#8fa1b3;">Value</span><span>(</span><span style="color:#bf616a;">args </span><span>...</span><span style="color:#b48ead;">any</span><span>) (</span><span style="color:#b48ead;">any</span><span>, </span><span style="color:#b48ead;">error</span><span>)
+</span><span>}
+</span></code></pre>
+<p>The <code>Key</code> method returns a string that identifies the function (e.g. <code>hoursSince</code>), and the <code>Value</code>
+method does any computation needed to return the result of the function. An arbitrary number of
+arguments can be received.</p>
+<h2 id="the-problem"><a class="zola-anchor" href="#the-problem" aria-label="Anchor link for: the-problem">The Problem</a></h2>
+<p>With thousands of incoming requests, triggering custom functions that would do
+complex processing, database calls, and even calls to other services, rules were taking seconds to
+finish. The system started to get overloaded, and database calls started to slow down a lot. This
+began to affect other parts of the system relying on the database.</p>
+<p>Given the static and repeatable nature of the requests that were coming in, we decided to start
+caching the results of some of these more complex functions to reuse across requests. This way,
+the complex part of the function would only be executed once, and the result would be reused by
+all other requests that needed it.</p>
+<h2 id="caching"><a class="zola-anchor" href="#caching" aria-label="Anchor link for: caching">Caching</a></h2>
+<p>The first approach was pretty straightforward: adding a map to the function where we could store the
+results with a key that could be resolved given the arguments passed. In that way, if the function
+is called again with the same arguments, we simply look up the result in the map and return it. It
+can be achieved with something like this:</p>
+<pre data-lang="go" style="background-color:#2b303b;color:#c0c5ce;" class="language-go "><code class="language-go" data-lang="go"><span style="color:#b48ead;">func </span><span style="color:#8fa1b3;">NewCache</span><span>(</span><span style="color:#bf616a;">fn </span><span style="color:#b48ead;">Function</span><span>) </span><span style="color:#b48ead;">Function </span><span>{
+</span><span>	</span><span style="color:#b48ead;">return </span><span>&amp;</span><span style="color:#bf616a;">CacheFunction</span><span>{
+</span><span>		</span><span style="color:#bf616a;">fn</span><span>:    </span><span style="color:#bf616a;">fn</span><span>,
+</span><span>		</span><span style="color:#bf616a;">cache</span><span>: </span><span style="color:#b48ead;">map</span><span>[</span><span style="color:#b48ead;">string</span><span>]</span><span style="color:#b48ead;">any</span><span>{},
+</span><span>	}
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">type </span><span>CacheFunction </span><span style="color:#b48ead;">struct </span><span>{
+</span><span>	</span><span style="color:#bf616a;">fn    </span><span style="color:#b48ead;">Function
+</span><span>	</span><span style="color:#bf616a;">cache </span><span style="color:#b48ead;">map</span><span>[</span><span style="color:#b48ead;">string</span><span>]</span><span style="color:#b48ead;">any
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">func </span><span>(</span><span style="color:#bf616a;">f </span><span>*</span><span style="color:#b48ead;">CacheFunction</span><span>) </span><span style="color:#8fa1b3;">Key</span><span>() </span><span style="color:#b48ead;">string </span><span>{
+</span><span>	</span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">fn</span><span>.</span><span style="color:#bf616a;">Key</span><span>()
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">func </span><span>(</span><span style="color:#bf616a;">f </span><span>*</span><span style="color:#b48ead;">CacheFunction</span><span>) </span><span style="color:#8fa1b3;">Value</span><span>(</span><span style="color:#bf616a;">args </span><span>...</span><span style="color:#b48ead;">any</span><span>) (</span><span style="color:#b48ead;">any</span><span>, </span><span style="color:#b48ead;">error</span><span>) {
+</span><span>	</span><span style="color:#bf616a;">cacheKey </span><span>:= </span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">createCacheKey</span><span>(</span><span style="color:#bf616a;">args</span><span>...)
+</span><span>
+</span><span>	</span><span style="color:#bf616a;">cached</span><span>, </span><span style="color:#bf616a;">hasCache </span><span>:= </span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">cache</span><span>[</span><span style="color:#bf616a;">cacheKey</span><span>]
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">hasCache </span><span>{
+</span><span>		</span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">cached</span><span>, </span><span style="color:#d08770;">nil
+</span><span>	}
+</span><span>
+</span><span>	</span><span style="color:#bf616a;">result</span><span>, </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">fn</span><span>.</span><span style="color:#bf616a;">Value</span><span>(</span><span style="color:#bf616a;">args</span><span>...)
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>		</span><span style="color:#b48ead;">return </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#bf616a;">err
+</span><span>	}
+</span><span>
+</span><span>	</span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">cache</span><span>[</span><span style="color:#bf616a;">cacheKey</span><span>] = </span><span style="color:#bf616a;">result
+</span><span>	</span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">result</span><span>, </span><span style="color:#d08770;">nil
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">func </span><span>(</span><span style="color:#bf616a;">f </span><span>*</span><span style="color:#b48ead;">CacheFunction</span><span>) </span><span style="color:#8fa1b3;">createCacheKey</span><span>(</span><span style="color:#bf616a;">args </span><span>...</span><span style="color:#b48ead;">any</span><span>) </span><span style="color:#b48ead;">string </span><span>{
+</span><span>	</span><span style="color:#bf616a;">cacheKey </span><span>:= </span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">Key</span><span>()
+</span><span>
+</span><span>	</span><span style="color:#b48ead;">for </span><span style="color:#bf616a;">i </span><span>:= </span><span style="color:#d08770;">0</span><span>; </span><span style="color:#bf616a;">i </span><span>&lt; </span><span style="color:#96b5b4;">len</span><span>(</span><span style="color:#bf616a;">args</span><span>); </span><span style="color:#bf616a;">i</span><span>++ {
+</span><span>		</span><span style="color:#bf616a;">cacheKey </span><span>= </span><span style="color:#bf616a;">fmt</span><span>.</span><span style="color:#bf616a;">Sprintf</span><span>(&quot;</span><span style="color:#d08770;">%s</span><span style="color:#a3be8c;">:</span><span style="color:#d08770;">%v</span><span>&quot;, </span><span style="color:#bf616a;">cacheKey</span><span>, </span><span style="color:#bf616a;">args</span><span>[</span><span style="color:#bf616a;">i</span><span>])
+</span><span>	}
+</span><span>
+</span><span>	</span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">cacheKey
+</span><span>}
+</span></code></pre>
+<p>While that works, and already speeds up the responses significantly, there are a few problems with
+this approach.</p>
+<p>The first and maybe most obvious one, that was easily found with a little testing: data
+race on the map. As we have multiple threads receiving requests, and the same cache function being
+reused, we might simultaneously read from and write to the same map, which causes Go to panic
+at runtime. This is relatively easy to fix in Go, we could simply use a Mutex or a <code>sync.Map</code> instead.</p>
+<p>However, there was a second problem too, that was: if two requests come simultaneously, and no cached
+result is available yet, the cache function would still execute the internal function two times, as
+it would take some time to process and store a result in the map. This was especially
+relevant to the use case, because the rules engine system was being used to process batches of
+thousands of requests at times. If many tried to run the same function at the same time, we'd end up
+just processing the internal function many times anyway, not making use of the cache.</p>
+<h2 id="handling-concurrent-calls"><a class="zola-anchor" href="#handling-concurrent-calls" aria-label="Anchor link for: handling-concurrent-calls">Handling Concurrent Calls</a></h2>
+<p>To fix this last problem, a solution is to make the cache function have knowledge of what is
+already being processed. If there are more requests coming in for the same function, while it is
+being processed, we simply wait for the result instead of processing it again. We can make use of
+Go channels for this. We just have to be careful not to enter a
+deadlock situation here, where multiple threads are waiting for each other to yield a result. Also,
+we need to ensure the initial processing function is aware of the number of waiters,
+so it sends the result to all of them.</p>
+<p>This is the implementation of the above:</p>
+<pre data-lang="go" style="background-color:#2b303b;color:#c0c5ce;" class="language-go "><code class="language-go" data-lang="go"><span style="color:#b48ead;">const </span><span style="color:#bf616a;">waitersCacheKeySuffix </span><span>= &quot;</span><span style="color:#a3be8c;">:waiters</span><span>&quot;
+</span><span>
+</span><span style="color:#b48ead;">func </span><span style="color:#8fa1b3;">NewCache</span><span>(</span><span style="color:#bf616a;">fn </span><span style="color:#b48ead;">Function</span><span>) </span><span style="color:#b48ead;">Function </span><span>{
+</span><span>	</span><span style="color:#b48ead;">return </span><span>&amp;</span><span style="color:#bf616a;">CacheFunction</span><span>{
+</span><span>		</span><span style="color:#bf616a;">fn</span><span>:    </span><span style="color:#bf616a;">fn</span><span>,
+</span><span>		</span><span style="color:#bf616a;">cache</span><span>: </span><span style="color:#bf616a;">sync</span><span>.</span><span style="color:#bf616a;">Map</span><span>{},
+</span><span>	}
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">type </span><span>CacheFunction </span><span style="color:#b48ead;">struct </span><span>{
+</span><span>	</span><span style="color:#bf616a;">fn    </span><span style="color:#b48ead;">Function
+</span><span>	</span><span style="color:#bf616a;">cache sync</span><span>.</span><span style="color:#b48ead;">Map
+</span><span>	</span><span style="color:#bf616a;">mu    sync</span><span>.</span><span style="color:#b48ead;">Mutex
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">type </span><span>CacheResult </span><span style="color:#b48ead;">struct </span><span>{
+</span><span>	</span><span style="color:#bf616a;">hasResult </span><span style="color:#b48ead;">bool
+</span><span>	</span><span style="color:#bf616a;">isRunning </span><span style="color:#b48ead;">bool
+</span><span>	</span><span style="color:#bf616a;">result    </span><span style="color:#b48ead;">any
+</span><span>	</span><span style="color:#bf616a;">ch        </span><span style="color:#b48ead;">chan any
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">func </span><span>(</span><span style="color:#bf616a;">f </span><span>*</span><span style="color:#b48ead;">CacheFunction</span><span>) </span><span style="color:#8fa1b3;">Key</span><span>() </span><span style="color:#b48ead;">string </span><span>{
+</span><span>	</span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">fn</span><span>.</span><span style="color:#bf616a;">Key</span><span>()
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">func </span><span>(</span><span style="color:#bf616a;">f </span><span>*</span><span style="color:#b48ead;">CacheFunction</span><span>) </span><span style="color:#8fa1b3;">Value</span><span>(</span><span style="color:#bf616a;">args </span><span>...</span><span style="color:#b48ead;">any</span><span>) (</span><span style="color:#b48ead;">any</span><span>, </span><span style="color:#b48ead;">error</span><span>) {
+</span><span>	</span><span style="color:#bf616a;">cacheKey </span><span>:= </span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">createCacheKey</span><span>(</span><span style="color:#bf616a;">args</span><span>...)
+</span><span>
+</span><span>	</span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">mu</span><span>.</span><span style="color:#bf616a;">Lock</span><span>() </span><span style="color:#65737e;">// Critical section until &quot;isRunning&quot; info is saved
+</span><span>	</span><span style="color:#bf616a;">cached</span><span>, </span><span style="color:#bf616a;">hasCache </span><span>:= </span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">cache</span><span>.</span><span style="color:#bf616a;">Load</span><span>(</span><span style="color:#bf616a;">cacheKey</span><span>)
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">hasCache </span><span>{
+</span><span>		</span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">mu</span><span>.</span><span style="color:#bf616a;">Unlock</span><span>() </span><span style="color:#65737e;">// As this thread will be a waiter or instant result, safe to unlock
+</span><span>		</span><span style="color:#bf616a;">cachedResult</span><span>, </span><span style="color:#bf616a;">ok </span><span>:= </span><span style="color:#bf616a;">cached</span><span>.(</span><span style="color:#b48ead;">CacheResult</span><span>)
+</span><span>		</span><span style="color:#b48ead;">if </span><span>!</span><span style="color:#bf616a;">ok </span><span>{
+</span><span>			</span><span style="color:#b48ead;">return </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#bf616a;">errors</span><span>.</span><span style="color:#bf616a;">New</span><span>(&quot;</span><span style="color:#a3be8c;">could not parse cached result</span><span>&quot;)
+</span><span>		}
+</span><span>
+</span><span>		</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">cachedResult</span><span>.</span><span style="color:#bf616a;">hasResult </span><span>{
+</span><span>			</span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">cachedResult</span><span>.</span><span style="color:#bf616a;">result</span><span>, </span><span style="color:#d08770;">nil
+</span><span>		}
+</span><span>		</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">cachedResult</span><span>.</span><span style="color:#bf616a;">isRunning </span><span>{
+</span><span>			</span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">addWaiter</span><span>(</span><span style="color:#bf616a;">cacheKey</span><span>)
+</span><span>			</span><span style="color:#bf616a;">result </span><span>:= &lt;-</span><span style="color:#bf616a;">cachedResult</span><span>.</span><span style="color:#bf616a;">ch
+</span><span>			</span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">result</span><span>, </span><span style="color:#d08770;">nil
+</span><span>		}
+</span><span>		</span><span style="color:#b48ead;">return </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#bf616a;">errors</span><span>.</span><span style="color:#bf616a;">New</span><span>(&quot;</span><span style="color:#a3be8c;">invalid cache value found</span><span>&quot;)
+</span><span>	}
+</span><span>
+</span><span>	</span><span style="color:#bf616a;">ch </span><span>:= </span><span style="color:#96b5b4;">make</span><span>(</span><span style="color:#b48ead;">chan any</span><span>)
+</span><span>	</span><span style="color:#bf616a;">cacheResult </span><span>:= </span><span style="color:#bf616a;">CacheResult</span><span>{
+</span><span>		</span><span style="color:#bf616a;">isRunning</span><span>: </span><span style="color:#d08770;">true</span><span>,
+</span><span>		</span><span style="color:#bf616a;">ch</span><span>:        </span><span style="color:#bf616a;">ch</span><span>,
+</span><span>	}
+</span><span>	</span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">cache</span><span>.</span><span style="color:#bf616a;">Store</span><span>(</span><span style="color:#bf616a;">cacheKey</span><span>, </span><span style="color:#bf616a;">cacheResult</span><span>)
+</span><span>	</span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">mu</span><span>.</span><span style="color:#bf616a;">Unlock</span><span>() </span><span style="color:#65737e;">// Critical section safely ends here, as other callers will receive &quot;isRunning&quot;
+</span><span>
+</span><span>	</span><span style="color:#bf616a;">result</span><span>, </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">fn</span><span>.</span><span style="color:#bf616a;">Value</span><span>(</span><span style="color:#bf616a;">args</span><span>...)
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>		</span><span style="color:#b48ead;">return </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#bf616a;">err
+</span><span>	}
+</span><span>
+</span><span>	</span><span style="color:#bf616a;">waiters </span><span>:= </span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">getWaiters</span><span>(</span><span style="color:#bf616a;">cacheKey</span><span>)
+</span><span>
+</span><span>	</span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">mu</span><span>.</span><span style="color:#bf616a;">Lock</span><span>() </span><span style="color:#65737e;">// Second critical section: no additional waiters can be added since the last read, and until cached result is stored
+</span><span>	</span><span style="color:#b48ead;">for </span><span style="color:#bf616a;">i </span><span>:= </span><span style="color:#d08770;">0</span><span>; </span><span style="color:#bf616a;">i </span><span>&lt; </span><span style="color:#bf616a;">waiters</span><span>; </span><span style="color:#bf616a;">i</span><span>++ {
+</span><span>		</span><span style="color:#bf616a;">ch </span><span>&lt;- </span><span style="color:#bf616a;">result
+</span><span>	}
+</span><span>	</span><span style="color:#96b5b4;">close</span><span>(</span><span style="color:#bf616a;">ch</span><span>)
+</span><span>
+</span><span>	</span><span style="color:#bf616a;">cacheResult </span><span>= </span><span style="color:#bf616a;">CacheResult</span><span>{
+</span><span>		</span><span style="color:#bf616a;">hasResult</span><span>: </span><span style="color:#d08770;">true</span><span>,
+</span><span>		</span><span style="color:#bf616a;">result</span><span>:    </span><span style="color:#bf616a;">result</span><span>,
+</span><span>	}
+</span><span>	</span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">cache</span><span>.</span><span style="color:#bf616a;">Store</span><span>(</span><span style="color:#bf616a;">cacheKey</span><span>, </span><span style="color:#bf616a;">cacheResult</span><span>)
+</span><span>	</span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">mu</span><span>.</span><span style="color:#bf616a;">Unlock</span><span>() </span><span style="color:#65737e;">// Final unlock
+</span><span>
+</span><span>	</span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">result</span><span>, </span><span style="color:#d08770;">nil
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">func </span><span>(</span><span style="color:#bf616a;">f </span><span>*</span><span style="color:#b48ead;">CacheFunction</span><span>) </span><span style="color:#8fa1b3;">createCacheKey</span><span>(</span><span style="color:#bf616a;">args </span><span>...</span><span style="color:#b48ead;">any</span><span>) </span><span style="color:#b48ead;">string </span><span>{
+</span><span>	</span><span style="color:#bf616a;">cacheKey </span><span>:= </span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">Key</span><span>()
+</span><span>
+</span><span>	</span><span style="color:#b48ead;">for </span><span style="color:#bf616a;">i </span><span>:= </span><span style="color:#d08770;">0</span><span>; </span><span style="color:#bf616a;">i </span><span>&lt; </span><span style="color:#96b5b4;">len</span><span>(</span><span style="color:#bf616a;">args</span><span>); </span><span style="color:#bf616a;">i</span><span>++ {
+</span><span>		</span><span style="color:#bf616a;">cacheKey </span><span>= </span><span style="color:#bf616a;">fmt</span><span>.</span><span style="color:#bf616a;">Sprintf</span><span>(&quot;</span><span style="color:#d08770;">%s</span><span style="color:#a3be8c;">:</span><span style="color:#d08770;">%v</span><span>&quot;, </span><span style="color:#bf616a;">cacheKey</span><span>, </span><span style="color:#bf616a;">args</span><span>[</span><span style="color:#bf616a;">i</span><span>])
+</span><span>	}
+</span><span>
+</span><span>	</span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">cacheKey
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">func </span><span>(</span><span style="color:#bf616a;">f </span><span>*</span><span style="color:#b48ead;">CacheFunction</span><span>) </span><span style="color:#8fa1b3;">addWaiter</span><span>(</span><span style="color:#bf616a;">cacheKey </span><span style="color:#b48ead;">string</span><span>) {
+</span><span>	</span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">mu</span><span>.</span><span style="color:#bf616a;">Lock</span><span>()
+</span><span>	</span><span style="color:#b48ead;">defer </span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">mu</span><span>.</span><span style="color:#bf616a;">Unlock</span><span>()
+</span><span>
+</span><span>	</span><span style="color:#bf616a;">waiters </span><span>:= </span><span style="color:#d08770;">0
+</span><span>	</span><span style="color:#bf616a;">cachedWaiters</span><span>, </span><span style="color:#bf616a;">found </span><span>:= </span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">cache</span><span>.</span><span style="color:#bf616a;">Load</span><span>(</span><span style="color:#bf616a;">cacheKey </span><span>+ </span><span style="color:#bf616a;">waitersCacheKeySuffix</span><span>)
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">found </span><span>{
+</span><span>		</span><span style="color:#bf616a;">parsed</span><span>, </span><span style="color:#bf616a;">ok </span><span>:= </span><span style="color:#bf616a;">cachedWaiters</span><span>.(</span><span style="color:#b48ead;">int</span><span>)
+</span><span>		</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">ok </span><span>{
+</span><span>			</span><span style="color:#bf616a;">waiters </span><span>= </span><span style="color:#bf616a;">parsed
+</span><span>		}
+</span><span>	}
+</span><span>	</span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">cache</span><span>.</span><span style="color:#bf616a;">Store</span><span>(</span><span style="color:#bf616a;">cacheKey</span><span>+</span><span style="color:#bf616a;">waitersCacheKeySuffix</span><span>, </span><span style="color:#bf616a;">waiters</span><span>+</span><span style="color:#d08770;">1</span><span>)
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">func </span><span>(</span><span style="color:#bf616a;">f </span><span>*</span><span style="color:#b48ead;">CacheFunction</span><span>) </span><span style="color:#8fa1b3;">getWaiters</span><span>(</span><span style="color:#bf616a;">cacheKey </span><span style="color:#b48ead;">string</span><span>) </span><span style="color:#b48ead;">int </span><span>{
+</span><span>	</span><span style="color:#bf616a;">waiters </span><span>:= </span><span style="color:#d08770;">0
+</span><span>	</span><span style="color:#bf616a;">cachedWaiters</span><span>, </span><span style="color:#bf616a;">found </span><span>:= </span><span style="color:#bf616a;">f</span><span>.</span><span style="color:#bf616a;">cache</span><span>.</span><span style="color:#bf616a;">Load</span><span>(</span><span style="color:#bf616a;">cacheKey </span><span>+ </span><span style="color:#bf616a;">waitersCacheKeySuffix</span><span>)
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">found </span><span>{
+</span><span>		</span><span style="color:#bf616a;">parsedWaiters</span><span>, </span><span style="color:#bf616a;">ok </span><span>:= </span><span style="color:#bf616a;">cachedWaiters</span><span>.(</span><span style="color:#b48ead;">int</span><span>)
+</span><span>		</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">ok </span><span>{
+</span><span>			</span><span style="color:#bf616a;">waiters </span><span>= </span><span style="color:#bf616a;">parsedWaiters
+</span><span>		}
+</span><span>	}
+</span><span>
+</span><span>	</span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">waiters
+</span><span>}
+</span></code></pre>
+<p>We now have a more robust cache function that is able to handle multiple simultaneous requests for
+the same function, processing only once per set of parameters.</p>
+<h2 id="testing"><a class="zola-anchor" href="#testing" aria-label="Anchor link for: testing">Testing</a></h2>
+<p>To make sure everything works as expected, let's approach testing it out. The test below is a solid
+attempt to test the concurrent reliability of the cache function. It tries to run the same function
+three times, increasing a counter, and we expect the counter to be increased only once, proving that
+the other two used the cached result.</p>
+<pre data-lang="go" style="background-color:#2b303b;color:#c0c5ce;" class="language-go "><code class="language-go" data-lang="go"><span style="color:#bf616a;">t</span><span>.</span><span style="color:#bf616a;">Run</span><span>(&quot;</span><span style="color:#a3be8c;">Should only process one function, in case two attempt to run concurrently</span><span>&quot;, </span><span style="color:#b48ead;">func</span><span>(</span><span style="color:#bf616a;">t </span><span>*</span><span style="color:#bf616a;">testing</span><span>.</span><span style="color:#b48ead;">T</span><span>) {
+</span><span>    </span><span style="color:#bf616a;">counter </span><span>:= </span><span style="color:#d08770;">0
+</span><span>    </span><span style="color:#bf616a;">fn </span><span>:= </span><span style="color:#b48ead;">func</span><span>(</span><span style="color:#bf616a;">args </span><span>...</span><span style="color:#b48ead;">any</span><span>) </span><span style="color:#b48ead;">any </span><span>{
+</span><span>        </span><span style="color:#bf616a;">counter </span><span>+= </span><span style="color:#d08770;">1
+</span><span>        </span><span style="color:#bf616a;">time</span><span>.</span><span style="color:#bf616a;">Sleep</span><span>(</span><span style="color:#bf616a;">time</span><span>.</span><span style="color:#bf616a;">Second</span><span>)
+</span><span>        </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">counter
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#bf616a;">cache </span><span>:= </span><span style="color:#bf616a;">function</span><span>.</span><span style="color:#bf616a;">NewCache</span><span>(</span><span style="color:#bf616a;">entity</span><span>.</span><span style="color:#bf616a;">NewMockFunction</span><span>(&quot;</span><span style="color:#a3be8c;">fn</span><span>&quot;, </span><span style="color:#bf616a;">fn</span><span>))
+</span><span>
+</span><span>    </span><span style="color:#bf616a;">ch </span><span>:= </span><span style="color:#96b5b4;">make</span><span>(</span><span style="color:#b48ead;">chan int</span><span>)
+</span><span>
+</span><span>    </span><span style="color:#bf616a;">concFn </span><span>:= </span><span style="color:#b48ead;">func</span><span>() {
+</span><span>        </span><span style="color:#bf616a;">val</span><span>, </span><span style="color:#bf616a;">_ </span><span>:= </span><span style="color:#bf616a;">cache</span><span>.</span><span style="color:#bf616a;">Value</span><span>()
+</span><span>        </span><span style="color:#bf616a;">parsed</span><span>, </span><span style="color:#bf616a;">ok </span><span>:= </span><span style="color:#bf616a;">val</span><span>.(</span><span style="color:#b48ead;">int</span><span>)
+</span><span>        </span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">ok </span><span>{
+</span><span>            </span><span style="color:#bf616a;">ch </span><span>&lt;- </span><span style="color:#bf616a;">parsed
+</span><span>        } </span><span style="color:#b48ead;">else </span><span>{
+</span><span>            </span><span style="color:#bf616a;">ch </span><span>&lt;- </span><span style="color:#d08770;">0
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">go </span><span style="color:#bf616a;">concFn</span><span>()
+</span><span>    </span><span style="color:#b48ead;">go </span><span style="color:#bf616a;">concFn</span><span>()
+</span><span>    </span><span style="color:#b48ead;">go </span><span style="color:#bf616a;">concFn</span><span>()
+</span><span>
+</span><span>    </span><span style="color:#bf616a;">assert</span><span>.</span><span style="color:#bf616a;">Equal</span><span>(</span><span style="color:#bf616a;">t</span><span>, </span><span style="color:#d08770;">1</span><span>, &lt;-</span><span style="color:#bf616a;">ch</span><span>)
+</span><span>    </span><span style="color:#bf616a;">assert</span><span>.</span><span style="color:#bf616a;">Equal</span><span>(</span><span style="color:#bf616a;">t</span><span>, </span><span style="color:#d08770;">1</span><span>, &lt;-</span><span style="color:#bf616a;">ch</span><span>)
+</span><span>    </span><span style="color:#bf616a;">assert</span><span>.</span><span style="color:#bf616a;">Equal</span><span>(</span><span style="color:#bf616a;">t</span><span>, </span><span style="color:#d08770;">1</span><span>, &lt;-</span><span style="color:#bf616a;">ch</span><span>)
+</span><span>})
+</span></code></pre>
+<h2 id="caveats"><a class="zola-anchor" href="#caveats" aria-label="Anchor link for: caveats">Caveats</a></h2>
+<p>The final function is robust and reliable, but still far from optimal. My main concern with it is that
+storing in memory is not scalable. For a single multi-threaded application it may be fine, but if
+the application reinitializes, we lose what's in the cache. On the other hand, if we don't clean up
+the cache from time to time, we risk exhausting the application's memory. If we are
+scaling the application horizontally, other instances of it won't be aware of each other's caches.</p>
+<p>A more scalable solution in this case might be to use a distributed lock (<a href="https://redis.io/docs/latest/develop/use/patterns/distributed-locks/">Redis</a> seems to be a good option). But that's a story for another day.</p>
+
+    </main>
+  </article>
+
+    <footer class="p-8 flex w-full justify-center">
+      <a
+        href="https://github.com/danitrod"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="p-4"
+      >
+        <image src="https://danitrod.dev/assets/github.svg" alt="GitHub"
+        height="32" width="32" />
+      </a>
+      <a
+        href="https://linkedin.com/in/danitrod"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="p-4"
+      >
+        <image src="https://danitrod.dev/assets/linkedin.png" alt="LinkedIn"
+        height="32" width="32" />
+      </a>
+    </footer>
+
+    <!-- Cloudflare Web Analytics -->
+    <script
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "19331285159d47aa90617faf377e459a"}'
+    ></script>
+    <!-- End Cloudflare Web Analytics -->
+  </body>
+</html>
